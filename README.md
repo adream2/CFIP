@@ -1,5 +1,10 @@
 # CFIP · IP 地址详细信息查询工具
 
+[![CI](https://github.com/adream2/CFIP/actions/workflows/ci.yml/badge.svg)](https://github.com/adream2/CFIP/actions/workflows/ci.yml)
+[![Deploy](https://github.com/adream2/CFIP/actions/workflows/deploy.yml/badge.svg)](https://github.com/adream2/CFIP/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+
 基于 **Cloudflare Workers** 的 IP 详情查询服务：输入任意 IPv4/IPv6（或留空查询本机 IP），一次返回尽可能全面的信息——归属地（国家/省/市/邮编/经纬度/时区）、运营商（ISP/ORG）、ASN、节点归属（云厂商/CDN 识别、托管 vs 住宅、Anycast）、反向解析（rDNS）、DNSBL 黑名单、代理/VPN/Tor 识别、注册局信息（RDAP 网段/滥用邮箱）等。
 
 - 零密钥可用：所有默认数据源均无需 API Key
@@ -48,7 +53,7 @@ JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connect
 ### 1. 克隆与安装
 
 ```bash
-git clone <your-repo> && cd CFIP
+git clone https://github.com/adream2/CFIP.git && cd CFIP
 npm install
 ```
 

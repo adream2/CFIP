@@ -129,7 +129,8 @@ async function lookup(
 }
 
 /** 非公网 IP 短路：零外部请求 */
-function shortCircuit(ip: string, isSelf: boolean, request: Request, env: Env): IpInfo {  const cls = classifyIp(ip);
+function shortCircuit(ip: string, isSelf: boolean, request: Request, env: Env): IpInfo {
+  const cls = classifyIp(ip);
   const info = emptyIpInfo(ip, ipVersion(ip), cls, 60 * 60);
   info.meta.warnings.push(`目标为${CLASS_LABELS[cls]}地址，已跳过全部外部查询`);
   const cf = request.cf as IncomingRequestCfProperties | undefined;

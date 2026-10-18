@@ -8,3 +8,7 @@ worker-configuration.d.ts
 Thumbs.db
 # ip2region xdb 本地副本（由 scripts/upload-xdb.mjs 按需下载）
 data/*.xdb
+# 本地工作区记忆（私有笔记，不进仓库）
+.workbuddy/
+# 依赖锁文件保留本地使用；CI 工作流用 npm install（项目无运行时依赖）
+package-lock.json

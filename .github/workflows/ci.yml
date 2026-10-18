@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm install
       - name: 类型检查
         run: npx tsc --noEmit
       - name: 单元测试

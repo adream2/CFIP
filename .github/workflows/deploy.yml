@@ -13,7 +13,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+      # 无锁文件（package-lock.json 不入库）：用 actions/cache 按 package.json 哈希缓存 npm 下载目录
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
       - run: npm install
       - name: 类型检查
         run: npx tsc --noEmit
@@ -28,7 +34,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+      # 无锁文件（package-lock.json 不入库）：用 actions/cache 按 package.json 哈希缓存 npm 下载目录
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
       - run: npm install
       - name: 部署到 Cloudflare Workers
         run: npx wrangler deploy

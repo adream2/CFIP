@@ -10,10 +10,10 @@ binding = "ASSETS"
 run_worker_first = true
 
 # ip2region 离线库 xdb 存放（运行时按需拉取，不进脚本 bundle）
-# 部署前执行：npx wrangler kv namespace create CFIP_KV，把返回的 id 回填至此
+# 命名空间已创建；换账号/重建时执行：npx wrangler kv namespace create CFIP_KV，把返回的 id 回填至此
 [[kv_namespaces]]
 binding = "CFIP_KV"
-id = "0123456789abcdef0123456789abcdef"
+id = "0becd53465b8407c94bd00f957f5a926"
 
 [vars]
 # 查询结果缓存时长（秒），默认 6 小时

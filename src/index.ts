@@ -70,7 +70,9 @@ async function lookup(
     cf: request.cf as IncomingRequestCfProperties | undefined,
     userAgent: request.headers.get('user-agent'),
     env,
-    fetchFn: fetch,
+    // 注意：不能直接传裸 fetch 引用——workerd 中会丢 this 报 Illegal invocation；
+    // 用箭头包装保留全局 fetch 的正确调用方式（测试里 stubGlobal 依然生效）
+    fetchFn: (input, init) => fetch(input, init),
   };
 
   // 第一轮：除 bgptools 外的全部适配器并行

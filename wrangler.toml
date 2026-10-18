@@ -1,0 +1,30 @@
+name = "cfip"
+main = "src/index.ts"
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# 静态资源（Workers Assets）
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+# ip2region 离线库 xdb 存放（运行时按需拉取，不进脚本 bundle）
+# 部署前执行：npx wrangler kv namespace create CFIP_KV，把返回的 id 回填至此
+[[kv_namespaces]]
+binding = "CFIP_KV"
+id = "0123456789abcdef0123456789abcdef"
+
+[vars]
+# 查询结果缓存时长（秒），默认 6 小时
+CACHE_TTL_SEC = "21600"
+# DNSBL 黑名单缓存时长（秒），默认 1 小时
+DNSBL_TTL_SEC = "3600"
+# ip-api.com 免费档禁止商业用途，作为二级降级源，可一键关闭
+ENABLE_IPAPI = "true"
+# 上游请求超时（毫秒）
+UPSTREAM_TIMEOUT_MS = "6000"
+
+# 可选数据源（不配置则对应适配器自动停用）：
+#   npx wrangler secret put IPINFO_TOKEN    # ipinfo.io（5 万次/月免费）
+#   npx wrangler secret put ABUSEIPDB_KEY   # AbuseIPDB（1000 次/天免费）

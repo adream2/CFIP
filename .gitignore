@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+dist/
+worker-configuration.d.ts
+.dev.vars
+*.log
+.DS_Store
+Thumbs.db
+# ip2region xdb 本地副本（由 scripts/upload-xdb.mjs 按需下载）
+data/*.xdb

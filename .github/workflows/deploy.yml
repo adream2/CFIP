@@ -1,0 +1,43 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 类型检查
+        run: npx tsc --noEmit
+      - name: 单元测试
+        run: npx vitest run
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 部署到 Cloudflare Workers
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      # 可选数据源：在仓库 Settings → Secrets 配置后取消注释
+      # - name: 配置 ipinfo.io Token（可选）
+      #   if: ${{ secrets.IPINFO_TOKEN != '' }}
+      #   run: echo "${{ secrets.IPINFO_TOKEN }}" | npx wrangler secret put IPINFO_TOKEN
+      # - name: 配置 AbuseIPDB Key（可选）
+      #   if: ${{ secrets.ABUSEIPDB_KEY != '' }}
+      #   run: echo "${{ secrets.ABUSEIPDB_KEY }}" | npx wrangler secret put ABUSEIPDB_KEY

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>IP 查询 · CFIP</title>
+  <meta name="description" content="IP 地址详细信息查询：归属地、运营商、ASN、节点、黑名单与代理识别">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="site-header">
+      <h1>IP 查询</h1>
+      <p class="subtitle">归属地 · 运营商 · ASN · 节点归属 · 反向解析 · 黑名单与代理识别</p>
+    </header>
+
+    <section class="card search-card">
+      <form id="search-form" autocomplete="off">
+        <input id="ip-input" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+               placeholder="输入 IPv4 / IPv6，留空查询本机 IP" aria-label="IP 地址">
+        <button id="btn-query" type="submit">查询</button>
+      </form>
+      <div class="chips" id="chips">
+        <span class="chips-label">示例</span>
+        <button type="button" class="chip" data-ip="8.8.8.8">8.8.8.8</button>
+        <button type="button" class="chip" data-ip="1.1.1.1">1.1.1.1</button>
+        <button type="button" class="chip" data-ip="114.114.114.114">114.114.114.114</button>
+        <button type="button" class="chip" data-ip="223.104.60.60">223.104.60.60</button>
+        <button type="button" class="chip" data-ip="2606:4700::1111">2606:4700::1111</button>
+      </div>
+    </section>
+
+    <p id="status" class="status" hidden></p>
+
+    <section id="result" hidden>
+      <div class="card zone" id="zone-ip"></div>
+      <div class="card zone" id="zone-location"></div>
+      <div class="card zone" id="zone-network"></div>
+      <div class="card zone" id="zone-node"></div>
+      <div class="card zone" id="zone-reputation"></div>
+      <div class="card zone" id="zone-connection" hidden></div>
+      <div class="card zone" id="zone-meta"></div>
+      <details class="card zone" id="raw-json">
+        <summary>原始 JSON</summary>
+        <pre id="raw-json-body"></pre>
+      </details>
+    </section>
+
+    <footer class="site-footer">
+      <p>数据源：<a href="https://ipwho.is" target="_blank" rel="noopener">ipwho.is</a> ·
+        <a href="https://ip-api.com" target="_blank" rel="noopener">ip-api.com</a> ·
+        <a href="https://github.com/lionsoul2014/ip2region" target="_blank" rel="noopener">ip2region</a> ·
+        RDAP · Cloudflare DoH · bgp.tools</p>
+      <p>不记录查询日志，不存储查询数据 · 部署于 Cloudflare Workers</p>
+    </footer>
+  </main>
+  <script src="/assets/app.js" type="module"></script>
+</body>
+</html>

@@ -1,7 +1,12 @@
-// 临时验证脚本：用真实 v4 xdb 验证查询算法与 region 字符串格式
+// 开发用验证脚本：用真实 v4 xdb 验证查询算法与 region 字符串格式。
+// 用法：先从 scripts/upload-xdb.mjs 的下载源获取 data/ip2region_v4.xdb 放入 data/，
+//       然后 node scripts/verify-xdb.mjs
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const buf = readFileSync('C:/Users/adrea/Desktop/CFIP/data/ip2region_v4.xdb');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const buf = readFileSync(join(ROOT, 'data', 'ip2region_v4.xdb'));
 const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
 const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
 

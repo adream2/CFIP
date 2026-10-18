@@ -1,5 +1,7 @@
 /** CFIP 前端逻辑：查询、分区渲染、深链。零外部依赖。 */
 
+import { esc, dash, flagEmoji, row, rows, badge, judgement, yn } from './render.js';
+
 const $ = (sel) => document.querySelector(sel);
 
 const form = $('#search-form');
@@ -7,40 +9,6 @@ const input = $('#ip-input');
 const btn = $('#btn-query');
 const statusEl = $('#status');
 const resultEl = $('#result');
-
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
-  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-));
-
-const dash = '—';
-
-function flagEmoji(cc) {
-  if (!cc || !/^[A-Za-z]{2}$/.test(cc)) return '';
-  return String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
-}
-
-function row(label, value, { mono = false } = {}) {
-  const empty = value === null || value === undefined || value === '';
-  return `<div class="row"><dt>${esc(label)}</dt><dd class="${mono ? 'mono' : ''}">${empty ? dash : esc(value)}</dd></div>`;
-}
-
-function rows(items) {
-  return `<dl class="rows">${items.join('')}</dl>`;
-}
-
-function badge(text, tone = '') {
-  return `<span class="badge ${tone}">${esc(text)}</span>`;
-}
-
-function judgement(j, yesText = '是', noText = '否') {
-  if (!j) return dash;
-  const tone = j.value ? 'bad' : 'ok';
-  return `${badge(j.value ? yesText : noText, tone)}<span class="badge">置信度 ${j.confidence === 'high' ? '高' : j.confidence === 'medium' ? '中' : '低'}</span>`;
-}
-
-function yn(v) {
-  return v === null || v === undefined ? dash : badge(v ? '是' : '否', v ? 'bad' : 'ok');
-}
 
 function setStatus(text, isError = false) {
   if (!text) {
@@ -147,10 +115,10 @@ function renderNode(info) {
     <h2>节点归属</h2>
     ${rows([
       row('云厂商 / CDN', nd.provider ? `${nd.provider}${nd.providerType ? ` · ${typeLabels[nd.providerType] ?? nd.providerType}` : ''}` : dash),
-      row('托管 / 数据中心', judgement(nd.hosting)),
-      row('Anycast', judgement(nd.anycast)),
-      row('移动网络', judgement(nd.isMobile)),
-      row('住宅宽带', judgement(nd.isBroadband, '是', '否')),
+      row('托管 / 数据中心', judgement(nd.hosting), { raw: true }),
+      row('Anycast', judgement(nd.anycast), { raw: true }),
+      row('移动网络', judgement(nd.isMobile), { raw: true }),
+      row('住宅宽带', judgement(nd.isBroadband, '是', '否'), { raw: true }),
       row('反向解析', nd.rdns?.length ? nd.rdns.join(' · ') : (nd.rdnsError ? `查询失败：${nd.rdnsError}` : dash), { mono: true }),
     ])}`;
 }
@@ -171,7 +139,7 @@ function renderReputation(info) {
   $('#zone-reputation').innerHTML = `
     <h2>信誉与风险</h2>
     ${rows([
-      row('代理 / VPN / Tor', hasProxy ? `${yn(p.isProxy)} ${yn(p.isVpn)} ${yn(p.isTor)}` : dash),
+      row('代理 / VPN / Tor', hasProxy ? `${yn(p.isProxy)} ${yn(p.isVpn)} ${yn(p.isTor)}` : dash, { raw: true }),
       row('滥用评分', r.abuseScore != null ? `${r.abuseScore} / 100${r.abuseReports != null ? ` · ${r.abuseReports} 次举报` : ''}` : dash, { mono: true }),
       row('黑名单', r.dnsbl.length ? `${r.dnsblListedCount} / ${r.dnsbl.length} 个列表列名` : dash),
     ])}

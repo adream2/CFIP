@@ -72,7 +72,7 @@ npm run xdb:upload        # 下载 xdb 并写入 KV（v4 约 11MB，必传）
 ```bash
 npx wrangler dev
 curl "http://localhost:8787/api?ip=114.114.114.114"
-npm test          # 94 个测试（ip/merge/xdb/adapters/handler 集成）
+npm test          # 99 个测试（ip/merge/xdb/render/adapters/handler 集成）
 ```
 
 ### 4. 部署

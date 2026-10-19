@@ -8,10 +8,11 @@
 基于 **Cloudflare Workers** 的 IP 详情查询服务：输入任意 IPv4/IPv6（或留空查询本机 IP），一次返回尽可能全面的信息——归属地（国家/省/市/邮编/经纬度/时区）、运营商（ISP/ORG）、ASN、节点归属（云厂商/CDN 识别、托管 vs 住宅、Anycast）、反向解析（rDNS）、DNSBL 黑名单、代理/VPN/Tor 识别、注册局信息（RDAP 网段/滥用邮箱）等。
 
 - 零密钥可用：所有默认数据源均无需 API Key
-- 多源聚合 + 字段级优先级合并 + 单源熔断降级
+- 多源聚合 + 字段级优先级合并 + 单源熔断降级 + 多源位置对比
+- 内置工具箱：出口探测 / 域名工具箱 / 全球 Ping / 服务状态（借鉴 one-ip，零 Key）
+- 前端零外部请求：内联 SVG 地图、localStorage 查询历史、无 CDN 无统计脚本
 - 6 小时结果缓存（Cache API），共享出口限流友好
 - 隐私：不记录查询日志、不建查询数据库，仅缓存
-- 前端零外部请求：无 CDN、无地图库、无统计脚本
 
 ## 界面与 API
 
@@ -20,6 +21,10 @@
 | `/` | 浏览器 → 中文单页；命令行（curl/wget） → 纯文本摘要 |
 | `/api[?ip=]` | 统一 JSON（CORS 全开） |
 | `/ip[?ip=]` | 纯文本 IP 地址（脚本友好） |
+| `/api/probe` | 出口探测：各 AI/云服务视角的 Worker 出口 IP 与可达性 |
+| `/api/domain?domain=` | 域名工具箱：DoH 解析 + CDN 识别 + RDAP WHOIS |
+| `/api/ping?target=&type=` | 全球 Ping（Globalping，ping/http/dns，匿名 250 次/h） |
+| `/api/status` | 服务状态聚合（Cloudflare/GitHub/OpenAI/Anthropic） |
 | `?ip=example.com` | *（规划中）域名先经 DoH 解析再查询 |
 
 ```bash
@@ -41,6 +46,8 @@ JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connect
 | RDAP（rdap.org 引导） | 网段 CIDR、RIR、注册时间、滥用投诉邮箱、用途类型 | 否 | 无 | network 段留空 |
 | Cloudflare DoH | rDNS 反解、5 个 DNSBL 黑名单（含命中原因 TXT） | 否 | 无 | rdnsError |
 | bgp.tools | ASN 名称/描述/注册国家（已知 ASN 时触发） | 否 | 无 | 忽略 |
+| Globalping | 全球分布式探针（ping/http/dns 测量，`/api/ping`） | 否 | 匿名 250 次/h | 429 时提示稍后再试 |
+| Statuspage（CF/GH/OpenAI/Anthropic） | 服务状态聚合（`/api/status`） | 否 | 无 | 字段置空 |
 | ipinfo.io（可选） | 加强地理/代理识别 | `IPINFO_TOKEN` | 5 万/月 | 无 secret 不注册 |
 | AbuseIPDB（可选） | 滥用评分/举报数 | `ABUSEIPDB_KEY` | 1000/天 | 无 secret 不注册 |
 

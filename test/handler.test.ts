@@ -111,6 +111,17 @@ describe('路由与响应协商', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toMatch(/css/);
   });
+
+  it('渲染模块与工具箱页面元素就位', async () => {
+    const js = await SELF.fetch('https://example.com/assets/render.js');
+    expect(js.status).toBe(200);
+    expect(js.headers.get('Content-Type')).toMatch(/javascript/);
+    const page = await (await SELF.fetch('https://example.com/', {
+      headers: { 'User-Agent': 'Mozilla/5.0 test' },
+    })).text();
+    expect(page).toContain('工具箱');
+    expect(page).toContain('出口探测');
+  });
 });
 
 describe('查询主流程', () => {

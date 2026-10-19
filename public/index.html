@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>IP 查询 · CFIP</title>
-  <meta name="description" content="IP 地址详细信息查询：归属地、运营商、ASN、节点、黑名单与代理识别">
+  <meta name="description" content="IP 地址详细信息查询：归属地、运营商、ASN、节点、黑名单与代理识别，附出口探测、域名工具箱、全球 Ping 与服务状态">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
 </head>
@@ -30,6 +30,7 @@
         <button type="button" class="chip" data-ip="223.104.60.60">223.104.60.60</button>
         <button type="button" class="chip" data-ip="2606:4700::1111">2606:4700::1111</button>
       </div>
+      <div class="chips" id="history" hidden></div>
     </section>
 
     <p id="status" class="status" hidden></p>
@@ -48,11 +49,52 @@
       </details>
     </section>
 
+    <section class="tools">
+      <h2 class="tools-title">工具箱</h2>
+
+      <div class="card tool" id="tool-probe">
+        <h3>出口探测 <button type="button" class="tool-go" data-tool="probe">运行</button></h3>
+        <p class="tool-hint">并发探测 Cloudflare / OpenAI / Anthropic / Grok / Google / GitHub —— CF 前端站点会返回服务视角的出口 IP 与边缘节点</p>
+        <div class="tool-body" id="tool-probe-body" hidden></div>
+      </div>
+
+      <div class="card tool" id="tool-domain">
+        <h3>域名工具箱</h3>
+        <form id="domain-form" class="tool-form" autocomplete="off">
+          <input id="domain-input" type="text" placeholder="example.com" spellcheck="false" aria-label="域名">
+          <button type="submit">查询</button>
+        </form>
+        <p class="tool-hint">DoH 解析 A/AAAA/CNAME + CDN 识别 + RDAP 注册信息（注册局 / 时间 / NS）</p>
+        <div class="tool-body" id="tool-domain-body" hidden></div>
+      </div>
+
+      <div class="card tool" id="tool-ping">
+        <h3>全球 Ping（Globalping）</h3>
+        <form id="ping-form" class="tool-form" autocomplete="off">
+          <input id="ping-input" type="text" placeholder="IP 或域名" spellcheck="false" aria-label="目标">
+          <select id="ping-type" aria-label="测量类型">
+            <option value="ping">ping</option>
+            <option value="http">http</option>
+            <option value="dns">dns</option>
+          </select>
+          <button type="submit">运行</button>
+        </form>
+        <p class="tool-hint">从全球分布式探针测量目标（匿名 250 次/小时），结果缓存 5 分钟</p>
+        <div class="tool-body" id="tool-ping-body" hidden></div>
+      </div>
+
+      <div class="card tool" id="tool-status">
+        <h3>服务状态 <button type="button" class="tool-go" data-tool="status">刷新</button></h3>
+        <p class="tool-hint">Cloudflare / GitHub / OpenAI / Anthropic 官方状态页聚合</p>
+        <div class="tool-body" id="tool-status-body" hidden></div>
+      </div>
+    </section>
+
     <footer class="site-footer">
       <p>数据源：<a href="https://ipwho.is" target="_blank" rel="noopener">ipwho.is</a> ·
         <a href="https://ip-api.com" target="_blank" rel="noopener">ip-api.com</a> ·
         <a href="https://github.com/lionsoul2014/ip2region" target="_blank" rel="noopener">ip2region</a> ·
-        RDAP · Cloudflare DoH · bgp.tools</p>
+        RDAP · Cloudflare DoH · bgp.tools · <a href="https://globalping.io" target="_blank" rel="noopener">Globalping</a></p>
       <p>不记录查询日志，不存储查询数据 · 部署于 Cloudflare Workers</p>
     </footer>
   </main>

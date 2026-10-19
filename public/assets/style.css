@@ -269,11 +269,8 @@ body {
 .tool-go:hover { opacity: 0.85; }
 
 @media (max-width: 560px) {
-  .tool-form { flex-direction: column; }
-}
-
-@media (max-width: 560px) {
   .row { grid-template-columns: 88px 1fr; }
   .ip-big .ip { font-size: 20px; }
   .search-card form { flex-direction: column; }
+  .tool-form { flex-direction: column; }
 }

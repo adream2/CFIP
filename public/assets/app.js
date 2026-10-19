@@ -4,7 +4,7 @@ import { esc, dash, flagEmoji, row, rows, badge, judgement, yn, mapSvg } from '.
 
 const $ = (sel) => document.querySelector(sel);
 
-const form = $('#ip-input')?.closest('.searchbar');
+const form = $('#ip-form');
 const input = $('#ip-input');
 const btn = $('#btn-query');
 const statusEl = $('#status');

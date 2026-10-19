@@ -22,6 +22,12 @@ import { mergeResults } from './merge';
 import { loadConfig } from './config';
 import { cacheAgeMs, readCache, writeCache } from './cache';
 import { corsHeaders, errorJson, jsonResponse, toTextSummary, wantsText } from './respond';
+import { withCache } from './tools/cache';
+import { runProbes } from './tools/probe';
+import { runDomainReport, isValidDomain } from './tools/domain';
+import { runStatusReport } from './tools/status';
+import { runPing, PING_TYPES } from './tools/ping';
+import type { PingType } from './tools/ping';
 
 const CLASS_LABELS: Record<IpClass, string> = {
   public: '公网',
@@ -109,6 +115,21 @@ async function lookup(
     }
   }
 
+  // 多源位置对比：每个提供过地理数据的源各自的原值（透明度）
+  merged.comparison.locations = parts
+    .filter((p) => p.data.location)
+    .map((p) => {
+      const L = p.data.location!;
+      return {
+        id: p.id,
+        country: L.country ?? null,
+        region: L.region ?? null,
+        city: L.city ?? null,
+        latitude: L.latitude ?? null,
+        longitude: L.longitude ?? null,
+      };
+    });
+
   // 派生字段
   merged.location.isChinaMainland = isChinaMainland(merged.location.countryCode);
 
@@ -179,6 +200,39 @@ export default {
 
     const isApi = url.pathname === '/api';
     const isRoot = url.pathname === '/';
+
+    // —— 工具端点（先于 ASSETS 委托匹配）——
+    if (url.pathname === '/api/probe') {
+      const { data, hit } = await withCache('probe', 300, () => runProbes(fetch));
+      return jsonTool(data, hit, t0);
+    }
+    if (url.pathname === '/api/domain') {
+      const domain = (url.searchParams.get('domain') ?? '')
+        .trim().toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/[/?#].*$/, '');
+      if (!isValidDomain(domain)) return errorJson('无效的域名（示例：example.com）', 400);
+      const { data, hit } = await withCache(`domain:${domain}`, 3600, () => runDomainReport(fetch, domain));
+      return jsonTool(data, hit, t0);
+    }
+    if (url.pathname === '/api/ping') {
+      const target = (url.searchParams.get('target') ?? '').trim();
+      if (!target || target.length > 253) return errorJson('缺少 target 参数（IP 或域名）', 400);
+      const typeRaw = (url.searchParams.get('type') ?? 'ping') as PingType;
+      if (!PING_TYPES.includes(typeRaw)) return errorJson(`type 仅支持: ${PING_TYPES.join(' / ')}`, 400);
+      const limit = Number(url.searchParams.get('limit') ?? '3');
+      const { data, hit } = await withCache(
+        `ping:${typeRaw}:${target}:${limit}`,
+        300,
+        () => runPing(fetch, typeRaw, target, limit),
+      );
+      return jsonTool(data, hit, t0);
+    }
+    if (url.pathname === '/api/status') {
+      const { data, hit } = await withCache('status', 60, () => runStatusReport(fetch));
+      return jsonTool(data, hit, t0);
+    }
+
     if (!isApi && !isRoot) {
       // 静态资源委托（含 404）
       return env.ASSETS.fetch(request);
@@ -249,5 +303,17 @@ function respond(
   if (isApi) return jsonResponse(info, extraHeaders);
   return new Response(toTextSummary(info), {
     headers: { 'Content-Type': 'text/plain; charset=utf-8', ...corsHeaders(), ...extraHeaders },
+  });
+}
+
+/** 工具端点 JSON 响应（带缓存标记） */
+function jsonTool(data: unknown, hit: boolean, t0: number): Response {
+  return new Response(JSON.stringify(data, null, 2), {
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      ...corsHeaders(),
+      'X-Cache': hit ? 'HIT' : 'MISS',
+      'X-Response-Time': `${Date.now() - t0}ms`,
+    },
   });
 }

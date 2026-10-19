@@ -137,6 +137,18 @@ export interface IpInfo {
     userAgent: string | null;
   } | null;
 
+  /** 多源位置对比：每个提供过地理数据的源各自的原值（透明度） */
+  comparison: {
+    locations: Array<{
+      id: SourceId;
+      country: string | null;
+      region: string | null;
+      city: string | null;
+      latitude: number | null;
+      longitude: number | null;
+    }>;
+  };
+
   meta: {
     sources: SourceStatus[];
     warnings: string[];
@@ -180,6 +192,7 @@ export function emptyIpInfo(ip: string, version: 4 | 6, cls: IpClass, cacheTtlSe
       abuseScore: null, abuseReports: null,
     },
     connection: null,
+    comparison: { locations: [] },
     meta: {
       sources: [], warnings: [],
       generatedAt: new Date().toISOString(),

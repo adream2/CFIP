@@ -4,16 +4,12 @@ compatibility_date = "2025-10-01"
 compatibility_flags = ["nodejs_compat"]
 
 # 静态资源（Workers Assets）
+# ip2region xdb（约 11MB）存放于 public/data/，随资产部署，
+# Worker 经 ASSETS 绑定按需加载（模块级记忆化，每 isolate 一次）——无需 KV
 [assets]
 directory = "./public"
 binding = "ASSETS"
 run_worker_first = true
-
-# ip2region 离线库 xdb 存放（运行时按需拉取，不进脚本 bundle）
-# 命名空间已创建；换账号/重建时执行：npx wrangler kv namespace create CFIP_KV，把返回的 id 回填至此
-[[kv_namespaces]]
-binding = "CFIP_KV"
-id = "0becd53465b8407c94bd00f957f5a926"
 
 [vars]
 # 查询结果缓存时长（秒），默认 6 小时

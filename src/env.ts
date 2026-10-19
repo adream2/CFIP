@@ -2,7 +2,6 @@
 
 export interface Env {
   ASSETS: Fetcher;
-  CFIP_KV: KVNamespace;
 
   // vars
   CACHE_TTL_SEC?: string;

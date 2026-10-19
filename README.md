@@ -37,7 +37,7 @@ JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connect
 | `request.cf` | 连接层信息（HTTP/TLS/RTT/colo，仅自身查询） | 否 | 无 | 字段级防御读取 |
 | ipwho.is（主） | 地理全套、ASN/ISP/ORG、代理识别、托管识别 | 否 | 1000/天 | 降级 ip-api |
 | ip-api.com（二级） | 地理、ISP/ORG/AS、移动/托管/代理、rDNS 兜底 | 否 | 45/分钟 | `ENABLE_IPAPI=false` 可关 |
-| ip2region 离线库 | **国内中文省/市/运营商**（xdb 存 KV，仅 IPv4） | 否 | 无 | 缺数据时 warning，中文归属退化为在线源 |
+| ip2region 离线库 | **国内中文省/市/运营商**（xdb 随 Workers Assets 部署，仅 IPv4） | 否 | 无 | 缺数据时 warning，中文归属退化为在线源 |
 | RDAP（rdap.org 引导） | 网段 CIDR、RIR、注册时间、滥用投诉邮箱、用途类型 | 否 | 无 | network 段留空 |
 | Cloudflare DoH | rDNS 反解、5 个 DNSBL 黑名单（含命中原因 TXT） | 否 | 无 | rdnsError |
 | bgp.tools | ASN 名称/描述/注册国家（已知 ASN 时触发） | 否 | 无 | 忽略 |
@@ -57,22 +57,22 @@ git clone https://github.com/adream2/CFIP.git && cd CFIP
 npm install
 ```
 
-### 2. 创建 KV 并上传 ip2region 数据
+### 2. 国内归属数据（ip2region，零配置）
+
+`public/data/ip2region_v4.xdb`（约 11MB）作为 Workers Assets **随代码一起部署**，Worker 经 ASSETS 绑定按需加载（模块级记忆化，每 isolate 一次）——无需 KV、无需手动上传。更新数据：
 
 ```bash
-npx wrangler kv namespace create CFIP_KV
-# 把输出的 id 回填到 wrangler.toml 的 [[kv_namespaces]] id
-npm run xdb:upload        # 下载 xdb 并写入 KV（v4 约 11MB，必传）
+GH_TOKEN=<有 Contents 写权限的 PAT> npm run xdb:sync
 ```
 
-> IPv6 离线数据（v6 xdb）因体积超出公共 CDN 单文件限制未内置；IPv6 查询的地理/网络/信誉数据由在线源完整覆盖，功能不受影响。
+> Workers Assets 单文件上限 25 MiB（Free 同等待遇），11MB 的 xdb 放得正好。IPv6 离线数据（v6 xdb）因体积超出公共 CDN 单文件限制未内置；IPv6 查询的地理/网络/信誉数据由在线源完整覆盖，功能不受影响。
 
 ### 3. 本地验证
 
 ```bash
 npx wrangler dev
 curl "http://localhost:8787/api?ip=114.114.114.114"
-npm test          # 99 个测试（ip/merge/xdb/render/adapters/handler 集成）
+npm test          # 102 个测试（ip/merge/xdb/render/adapters/handler 集成）
 ```
 
 ### 4. 部署
@@ -125,8 +125,8 @@ src/
 ├── config.ts           # 环境变量默认值
 ├── adapters/           # 9 个数据源适配器 + 注册/执行 + 优先级表 + 熔断
 └── xdb/searcher.ts     # ip2region xdb 二进制查询（自实现）
-public/                 # Workers Assets：单页 + 原生 JS + CSS
-scripts/upload-xdb.mjs  # xdb 下载上传工具
+public/                 # Workers Assets：单页 + 原生 JS + CSS + data/ip2region_v4.xdb
+scripts/sync-xdb.mjs    # xdb 数据同步（下载 → Contents API 推送进仓库，随资产部署）
 test/                   # Vitest（@cloudflare/vitest-pool-workers）
 ```
 

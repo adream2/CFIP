@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { env } from 'cloudflare:test';
-import type { KVNamespace } from '@cloudflare/workers-types';
-
-const kv = (env as unknown as { CFIP_KV: KVNamespace }).CFIP_KV;
 import { ipwhoisAdapter } from '../src/adapters/ipwhois';
 import { ipapiAdapter, parseAsnField } from '../src/adapters/ipapi';
 import { rdapAdapter, v4RangeToCidr } from '../src/adapters/rdap';
@@ -10,7 +7,7 @@ import { dohAdapter } from '../src/adapters/doh';
 import { bgptoolsAdapter } from '../src/adapters/bgptools';
 import { ipinfoAdapter } from '../src/adapters/ipinfo';
 import { abuseipdbAdapter } from '../src/adapters/abuseipdb';
-import { ip2regionAdapter, resetSearcherCache } from '../src/adapters/ip2region';
+import { ip2regionAdapter, resetSearcherCache, __setXdbBytesSourceForTest } from '../src/adapters/ip2region';
 import { buildAdapters, runAdapters } from '../src/adapters';
 import { breaker } from '../src/adapters/breaker';
 import { buildSyntheticXdb } from './helpers/synthetic-xdb';
@@ -50,6 +47,7 @@ function mockFetch(routes: Record<string, unknown | (() => never)>): typeof fetc
 beforeEach(() => {
   breaker.reset();
   resetSearcherCache();
+  __setXdbBytesSourceForTest(null); // 默认走生产路径（ASSETS 绑定），各测试按需注入
 });
 
 afterEach(() => {
@@ -242,30 +240,40 @@ describe('可选适配器', () => {
   });
 });
 
-describe('ip2region 适配器（KV 合成数据）', () => {
+describe('ip2region 适配器（注入合成数据）', () => {
   it('命中中文省市区与运营商', async () => {
-    await kv.put('xdb:ip2region_v4', buildSyntheticXdb());
+    __setXdbBytesSourceForTest(async () => buildSyntheticXdb());
     const { data } = await ip2regionAdapter.run(makeCtx({ ip: '1.2.3.4' }));
     expect(data.location).toMatchObject({ country: '中国', region: '测试省', city: '测试市' });
     expect(data.node?.provider).toBe('测试运营商');
   });
 
   it('未命中网段返回空数据', async () => {
+    __setXdbBytesSourceForTest(async () => buildSyntheticXdb());
     const { data } = await ip2regionAdapter.run(makeCtx({ ip: '9.9.9.9' }));
     expect(data).toEqual({});
   });
 
   it('IPv6 给出提示性 warning', async () => {
+    __setXdbBytesSourceForTest(async (v) => (v === 4 ? buildSyntheticXdb() : null));
     const res = await ip2regionAdapter.run(makeCtx({ ip: '2606:4700::1111' }));
     expect(res.warnings?.join(' ')).toMatch(/IPv6/);
   });
 
-  it('KV 无数据时给出配置提示', async () => {
-    resetSearcherCache();
-    // 用一个不存在的隔离内 KV（重新 put 后再删）
-    await kv.delete('xdb:ip2region_v4');
+  it('数据源缺失时给出配置提示', async () => {
+    __setXdbBytesSourceForTest(async () => null);
     const res = await ip2regionAdapter.run(makeCtx({ ip: '1.2.3.4' }));
     expect(res.warnings?.join(' ')).toMatch(/未配置/);
+  });
+});
+
+describe('ip2region 适配器（真实资产数据，走 ASSETS 绑定）', () => {
+  it('加载 public/data/ip2region_v4.xdb 命中国内 IP', async () => {
+    const { data, warnings } = await ip2regionAdapter.run(makeCtx({ ip: '223.5.5.5' }));
+    expect(warnings ?? []).toEqual([]);
+    expect(data.location?.country).toBe('中国');
+    expect(data.location?.region).toBeTruthy();
+    expect(data.node?.provider).toBeTruthy();
   });
 });
 

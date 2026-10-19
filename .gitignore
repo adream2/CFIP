@@ -12,3 +12,5 @@ data/*.xdb
 .workbuddy/
 # 依赖锁文件保留本地使用；CI 工作流用 npm install（项目无运行时依赖）
 package-lock.json
+# 前端风格选型 demo（决策产物，不进仓库）
+design-demos/

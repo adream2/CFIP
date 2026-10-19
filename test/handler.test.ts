@@ -102,7 +102,7 @@ describe('路由与响应协商', () => {
     });
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toMatch(/<html lang="zh-CN">/);
+    expect(html).toMatch(/<html lang="zh-CN" data-theme="/);
     expect(html).toMatch(/IP 查询/);
   });
 

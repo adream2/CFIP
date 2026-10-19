@@ -1,10 +1,10 @@
-/** CFIP 前端逻辑：查询、分区渲染、工具箱、查询历史。零外部依赖。 */
+/** CFIP 前端逻辑：仪表盘渲染、工具箱、查询历史。零外部依赖。 */
 
 import { esc, dash, flagEmoji, row, rows, badge, judgement, yn, mapSvg } from './render.js';
 
 const $ = (sel) => document.querySelector(sel);
 
-const form = $('#search-form');
+const form = $('#ip-input')?.closest('.searchbar');
 const input = $('#ip-input');
 const btn = $('#btn-query');
 const statusEl = $('#status');
@@ -48,7 +48,7 @@ async function lookup(ip) {
 
 function renderAll(info) {
   resultEl.hidden = false;
-  renderIp(info);
+  renderKpis(info);
   renderLocation(info);
   renderNetwork(info);
   renderNode(info);
@@ -58,23 +58,37 @@ function renderAll(info) {
   $('#raw-json-body').textContent = JSON.stringify(info, null, 2);
 }
 
-function renderIp(info) {
-  const cls = info.isPublic ? badge('公网', 'ok') : badge(info.class, 'warn');
-  $('#zone-ip').innerHTML = `
-    <h2>IP 地址</h2>
-    <div class="ip-big">
-      <span class="ip">${esc(info.ip)}</span>
-      ${badge(`IPv${info.version}`)}
-      ${cls}
-      <button class="btn-copy" id="btn-copy-ip">复制</button>
-    </div>`;
-  $('#btn-copy-ip').addEventListener('click', async () => {
-    await navigator.clipboard?.writeText(info.ip);
-    $('#btn-copy-ip').textContent = '已复制';
-    setTimeout(() => { $('#btn-copy-ip').textContent = '复制'; }, 1200);
-  });
+/* —— KPI 大数块 —— */
+function renderKpis(info) {
+  const L = info.location;
+  const N = info.network;
+  const listed = info.reputation.dnsblListedCount;
+  const total = info.reputation.dnsbl.length;
+  const proxyClean = info.reputation.proxy.isProxy === false;
+
+  $('#kpi-ip').textContent = info.ip;
+  $('#kpi-ip-sub').innerHTML =
+    `<span class="pill">IPv${info.version}</span> ` +
+    (info.isPublic ? `<span class="pill ok">公网</span>` : `<span class="pill warn">${esc(info.class)}</span>`);
+
+  const place = [L.city, L.region].filter(Boolean).join(', ');
+  $('#kpi-loc').textContent = place || L.country || '—';
+  $('#kpi-loc-sub').innerHTML =
+    `${flagEmoji(L.countryCode)} ${esc(L.country ?? '—')}` +
+    (L.timezone ? ` · ${esc(L.timezone)}` : '');
+
+  $('#kpi-net').textContent = N.asn != null ? `AS${N.asn}` : (N.isp || '—');
+  $('#kpi-net-sub').textContent = N.isp || N.org || N.asnLabel || '—';
+
+  const risk = total > 0 ? `${listed}/${total}` : '—';
+  const riskEl = $('#kpi-risk');
+  riskEl.textContent = risk;
+  riskEl.style.color = listed > 0 ? 'var(--bad)' : 'var(--ok)';
+  $('#kpi-risk-sub').innerHTML =
+    `DNSBL${proxyClean ? ' · <span class="pill ok">无代理</span>' : ''}`;
 }
 
+/* —— 面板：地理位置 —— */
 function renderLocation(info) {
   const L = info.location;
   const place = [L.region, L.city, L.district].filter(Boolean).join(' · ');
@@ -85,117 +99,102 @@ function renderLocation(info) {
         <tbody>${locations.map((l) => `<tr><td class="mono">${esc(l.id)}</td><td>${esc(l.country ?? '—')}</td><td>${esc(l.region ?? '—')}</td><td>${esc(l.city ?? '—')}</td><td class="mono">${l.latitude != null ? `${esc(l.latitude)}, ${esc(l.longitude)}` : '—'}</td></tr>`).join('')}</tbody></table>
       </details>`
     : '';
-  $('#zone-location').innerHTML = `
-    <h2>地理位置</h2>
-    ${rows([
-      row('国家/地区', `${flagEmoji(L.countryCode)} ${L.country ?? dash}${L.countryCode ? ` (${L.countryCode})` : ''}${L.countryNative && L.countryNative !== L.country ? ` · ${L.countryNative}` : ''}`),
-      row('省/市/区', place || dash),
-      row('邮编', L.postalCode, { mono: true }),
-      row('经纬度', L.latitude != null && L.longitude != null ? `${L.latitude}, ${L.longitude}` : dash, { mono: true }),
-      row('时区', L.timezone ? `${L.timezone}${L.utcOffsetSeconds != null ? ` (UTC${L.utcOffsetSeconds >= 0 ? '+' : ''}${L.utcOffsetSeconds / 3600})` : ''}` : dash),
-      row('洲', [L.continent, L.continentCode].filter(Boolean).join(' ') || dash),
-      row('首都 / 电话码', [L.capital, L.callingCode ? `+${L.callingCode}` : null].filter(Boolean).join(' · ') || dash),
-    ])}
+  $('#panel-location').innerHTML = `
+    <dl class="kv">
+      <div><dt>国家</dt><dd>${flagEmoji(L.countryCode)} ${esc(L.country ?? '—')}${L.countryCode ? ` (${esc(L.countryCode)})` : ''}</dd></div>
+      <div><dt>省/市</dt><dd>${esc(place || '—')}</dd></div>
+      <div><dt>坐标</dt><dd>${L.latitude != null && L.longitude != null ? `${esc(L.latitude)}, ${esc(L.longitude)}` : '—'}</dd></div>
+      <div><dt>时区</dt><dd>${esc(L.timezone ?? '—')}${L.utcOffsetSeconds != null ? ` (UTC${L.utcOffsetSeconds >= 0 ? '+' : ''}${L.utcOffsetSeconds / 3600})` : ''}</dd></div>
+      <div><dt>洲 / 电话码</dt><dd>${esc([L.continent, L.callingCode ? `+${L.callingCode}` : ''].filter(Boolean).join(' · ') || '—')}</dd></div>
+    </dl>
     ${mapSvg(L.latitude, L.longitude)}
     ${compareHtml}`;
 }
 
+/* —— 面板：网络与注册 —— */
 function renderNetwork(info) {
   const N = info.network;
-  $('#zone-network').innerHTML = `
-    <h2>网络与注册信息</h2>
-    ${rows([
-      row('ASN', N.asnLabel ?? (N.asn != null ? `AS${N.asn}` : null), { mono: true }),
-      row('ISP / 运营商', N.isp || dash),
-      row('组织', N.org || dash),
-      row('AS 名称', N.asName || dash, { mono: true }),
-      row('AS 域名', N.asDomain || dash, { mono: true }),
-      row('网段', N.range.cidr ? `${N.range.cidr}${N.range.count ? ` · ${N.range.count.toLocaleString()} 个地址` : ''}` : (N.range.start && N.range.end ? `${N.range.start} – ${N.range.end}` : dash), { mono: true }),
-      row('注册局', N.rir || dash),
-      row('注册时间', N.allocationDate ? N.allocationDate.slice(0, 10) : dash, { mono: true }),
-      row('滥用投诉邮箱', N.abuseEmail || dash, { mono: true }),
-      row('用途类型', N.usageType || dash),
-    ])}`;
+  $('#panel-network').innerHTML = `
+    <dl class="kv">
+      <div><dt>ASN</dt><dd>${N.asn != null ? `AS${N.asn}` : '—'}${N.asnLabel ? ` ${esc(N.asnLabel)}` : ''}</dd></div>
+      <div><dt>ISP / 组织</dt><dd>${esc(N.isp || N.org || '—')}</dd></div>
+      <div><dt>AS 名称</dt><dd>${esc(N.asName ?? '—')}</dd></div>
+      <div><dt>网段</dt><dd>${N.range.cidr ? `${esc(N.range.cidr)}${N.range.count ? ` (${N.range.count.toLocaleString()} 地址)` : ''}` : (N.range.start && N.range.end ? `${esc(N.range.start)} – ${esc(N.range.end)}` : '—')}</dd></div>
+      <div><dt>注册局</dt><dd>${esc(N.rir ?? '—')}${N.allocationDate ? ` · ${esc(N.allocationDate.slice(0, 10))}` : ''}</dd></div>
+      <div><dt>滥用邮箱</dt><dd>${esc(N.abuseEmail ?? '—')}</dd></div>
+      <div><dt>用途</dt><dd>${esc(N.usageType ?? '—')}</dd></div>
+    </dl>`;
 }
 
+/* —— 面板：节点归属 —— */
 function renderNode(info) {
   const nd = info.node;
   const typeLabels = { cloud: '云厂商', cdn: 'CDN', hosting: '托管/IDC', isp: '运营商', education: '教育网', government: '政府', unknown: '未知' };
-  $('#zone-node').innerHTML = `
-    <h2>节点归属</h2>
-    ${rows([
-      row('云厂商 / CDN', nd.provider ? `${nd.provider}${nd.providerType ? ` · ${typeLabels[nd.providerType] ?? nd.providerType}` : ''}` : dash),
-      row('托管 / 数据中心', judgement(nd.hosting), { raw: true }),
-      row('Anycast', judgement(nd.anycast), { raw: true }),
-      row('移动网络', judgement(nd.isMobile), { raw: true }),
-      row('住宅宽带', judgement(nd.isBroadband, '是', '否'), { raw: true }),
-      row('反向解析', nd.rdns?.length ? nd.rdns.join(' · ') : (nd.rdnsError ? `查询失败：${nd.rdnsError}` : dash), { mono: true }),
-    ])}`;
+  $('#panel-node').innerHTML = `
+    <dl class="kv">
+      <div><dt>类型</dt><dd>${nd.provider ? `${esc(nd.provider)}${nd.providerType ? ` · ${esc(typeLabels[nd.providerType] ?? nd.providerType)}` : ''}` : '—'}</dd></div>
+      <div><dt>托管</dt><dd>${judgement(nd.hosting)}</dd></div>
+      <div><dt>Anycast</dt><dd>${judgement(nd.anycast)}</dd></div>
+      <div><dt>移动网络</dt><dd>${judgement(nd.isMobile)}</dd></div>
+      <div><dt>住宅宽带</dt><dd>${judgement(nd.isBroadband, '是', '否')}</dd></div>
+      <div><dt>rDNS</dt><dd>${nd.rdns?.length ? esc(nd.rdns.join(' · ')) : (nd.rdnsError ? `查询失败：${esc(nd.rdnsError)}` : '—')}</dd></div>
+    </dl>`;
 }
 
+/* —— 面板：信誉与风险 —— */
 function renderReputation(info) {
   const r = info.reputation;
-  const dnsblHtml = r.dnsbl.length
-    ? `<div class="dnsbl">${r.dnsbl.map((d) => `
-        <div class="dnsbl-item">
-          <span class="dot ${d.listed ? 'bad' : 'ok'}"></span>
-          <span class="list">${esc(d.list)}</span>
-          <span>${d.listed ? `已列名（${esc(d.returnCode ?? '')}）` : '未列名'}</span>
-          ${d.reason ? `<span class="reason">${esc(d.reason)}</span>` : ''}
-        </div>`).join('')}</div>`
-    : '<p class="status">暂无黑名单数据</p>';
   const p = r.proxy;
   const hasProxy = p.isProxy != null || p.isVpn != null || p.isTor != null || p.isAnonymous != null;
-  $('#zone-reputation').innerHTML = `
-    <h2>信誉与风险</h2>
-    ${rows([
-      row('代理 / VPN / Tor', hasProxy ? `${yn(p.isProxy)} ${yn(p.isVpn)} ${yn(p.isTor)}` : dash, { raw: true }),
-      row('滥用评分', r.abuseScore != null ? `${r.abuseScore} / 100${r.abuseReports != null ? ` · ${r.abuseReports} 次举报` : ''}` : dash, { mono: true }),
-      row('黑名单', r.dnsbl.length ? `${r.dnsblListedCount} / ${r.dnsbl.length} 个列表列名` : dash),
-    ])}
-    ${dnsblHtml}`;
+  $('#panel-reputation').innerHTML = `
+    <dl class="kv">
+      <div><dt>代理</dt><dd>${hasProxy ? judgement({ value: !!p.isProxy, confidence: 'medium', source: 'ipwhois' }) : '—'}</dd></div>
+      <div><dt>VPN / Tor</dt><dd>${hasProxy ? `${yn(p.isVpn)} / ${yn(p.isTor)}` : '—'}</dd></div>
+      <div><dt>滥用评分</dt><dd>${r.abuseScore != null ? `${r.abuseScore} / 100${r.abuseReports != null ? ` · ${r.abuseReports} 举报` : ''}` : '—'}</dd></div>
+    </dl>
+    ${r.dnsbl.length ? `<div class="dots">${r.dnsbl.map((d) =>
+      `<span class="p${d.listed ? ' hit' : ''}"><i></i>${esc(d.list.replace(/\.(org|net|com)$/, ''))}${d.listed ? ` · ${esc(d.returnCode ?? '')}` : ''}</span>`).join('')}</div>`
+    : '<p class="status" style="text-align:left;margin:0">暂无黑名单数据</p>'}`;
 }
 
+/* —— 面板：连接信息 —— */
 function renderConnection(info) {
-  const zone = $('#zone-connection');
-  if (!info.connection) { zone.hidden = true; return; }
-  zone.hidden = false;
+  const wrap = $('#panel-connection-wrap');
+  if (!info.connection) { wrap.hidden = true; return; }
+  wrap.hidden = false;
   const c = info.connection;
-  zone.innerHTML = `
-    <h2>本次连接（来自边缘节点）</h2>
-    ${rows([
-      row('协议 / TLS', [c.httpProtocol, c.tlsVersion].filter(Boolean).join(' · ') || dash, { mono: true }),
-      row('TLS 套件', c.tlsCipher || dash, { mono: true }),
-      row('延迟 RTT', c.clientTcpRttMs != null ? `${c.clientTcpRttMs} ms` : dash, { mono: true }),
-      row('边缘节点', c.colo || dash, { mono: true }),
-      row('AS 组织', c.asOrganization || dash),
-      row('User-Agent', c.userAgent || dash, { mono: true }),
-    ])}`;
+  $('#panel-connection').innerHTML = `
+    <dl class="kv">
+      <div><dt>协议 / TLS</dt><dd>${[c.httpProtocol, c.tlsVersion].filter(Boolean).join(' · ') || '—'}${c.tlsCipher ? ` (${esc(c.tlsCipher)})` : ''}</dd></div>
+      <div><dt>边缘节点</dt><dd>${esc(c.colo ?? '—')}${c.clientTcpRttMs != null ? ` · RTT ${c.clientTcpRttMs}ms` : ''}</dd></div>
+      <div><dt>AS 组织</dt><dd>${esc(c.asOrganization ?? '—')}</dd></div>
+      <div><dt>User-Agent</dt><dd>${esc(c.userAgent ?? '—')}</dd></div>
+    </dl>`;
 }
 
+/* —— 面板：查询元信息 —— */
 function renderMeta(info) {
   const m = info.meta;
   const warnings = m.warnings.length
     ? `<ul class="warnings">${m.warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>`
     : '';
-  $('#zone-meta').innerHTML = `
-    <h2>查询元信息</h2>
+  $('#panel-meta').innerHTML = `
+    ${warnings}
     <table class="meta-table">
       <thead><tr><th>数据源</th><th>状态</th><th>耗时</th></tr></thead>
       <tbody>
         ${m.sources.map((s) => `
           <tr>
             <td class="mono">${esc(s.id)}</td>
-            <td>${s.ok ? badge('成功', 'ok') : badge('失败', 'bad')}${s.error ? ` <span class="dnsbl-item reason">${esc(s.error)}</span>` : ''}</td>
+            <td>${s.ok ? '<span class="pill ok">成功</span>' : `<span class="pill bad">失败</span> <span class="reason">${esc(s.error ?? '')}</span>`}</td>
             <td class="mono">${s.ms} ms</td>
           </tr>`).join('')}
       </tbody>
     </table>
-    <p class="status" style="text-align:left">生成时间：${esc(m.generatedAt)} · 缓存 ${Math.round((m.cacheTtlSec ?? 0) / 3600)} 小时</p>
-    ${warnings}`;
+    <p class="status" style="text-align:left;margin:8px 0 0">生成时间：${esc(m.generatedAt)} · 缓存 ${Math.round((m.cacheTtlSec ?? 0) / 3600)} 小时</p>`;
 }
 
-// —— 查询历史（localStorage） ——
+/* —— 查询历史（localStorage） —— */
 const HISTORY_KEY = 'cfip-history';
 
 function loadHistory() {
@@ -228,31 +227,31 @@ function renderHistory() {
   });
 }
 
-// —— 工具箱 ——
+/* —— 工具箱 —— */
 async function runTool(name, path, bodyEl) {
   bodyEl.hidden = false;
-  bodyEl.innerHTML = '<p class="status">查询中…</p>';
+  bodyEl.innerHTML = '<p class="status" style="text-align:left">查询中…</p>';
   try {
     const res = await fetch(path);
     const data = await res.json().catch(() => null);
     if (!res.ok || !data) {
-      bodyEl.innerHTML = `<p class="status error">查询失败（HTTP ${res.status}）</p>`;
+      bodyEl.innerHTML = `<p class="status error" style="text-align:left">查询失败（HTTP ${res.status}）</p>`;
       return;
     }
     if (data.error) {
-      bodyEl.innerHTML = `<p class="status error">${esc(data.error)}</p>`;
+      bodyEl.innerHTML = `<p class="status error" style="text-align:left">${esc(data.error)}</p>`;
       return;
     }
     renderTool(name, data, bodyEl);
   } catch (e) {
-    bodyEl.innerHTML = `<p class="status error">网络错误：${esc(e.message)}</p>`;
+    bodyEl.innerHTML = `<p class="status error" style="text-align:left">网络错误：${esc(e.message)}</p>`;
   }
 }
 
 function renderTool(name, data, el) {
   if (name === 'probe') {
     el.innerHTML = `<table class="meta-table"><thead><tr><th>服务</th><th>可达</th><th>出口 IP</th><th>边缘</th><th>国家</th><th>耗时</th></tr></thead><tbody>
-      ${data.probes.map((p) => `<tr><td class="mono">${esc(p.service)}</td><td>${p.reachable ? badge('是', 'ok') : badge('否', 'bad')}${p.error ? ` <span class="reason">${esc(p.error)}</span>` : ''}</td><td class="mono">${esc(p.exitIp ?? '—')}</td><td class="mono">${esc(p.colo ?? '—')}</td><td class="mono">${esc(p.loc ?? '—')}</td><td class="mono">${p.ms} ms</td></tr>`).join('')}
+      ${data.probes.map((p) => `<tr><td class="mono">${esc(p.service)}</td><td>${p.reachable ? '<span class="pill ok">是</span>' : `<span class="pill bad">否</span> <span class="reason">${esc(p.error ?? '')}</span>`}</td><td class="mono">${esc(p.exitIp ?? '—')}</td><td class="mono">${esc(p.colo ?? '—')}</td><td class="mono">${esc(p.loc ?? '—')}</td><td class="mono">${p.ms} ms</td></tr>`).join('')}
     </tbody></table>`;
     return;
   }
@@ -261,7 +260,7 @@ function renderTool(name, data, el) {
     el.innerHTML = `<table class="meta-table"><thead><tr><th>服务</th><th>状态</th><th>说明</th></tr></thead><tbody>
       ${data.services.map((s) => {
         const tone = s.indicator === 'none' ? 'ok' : s.indicator ? 'bad' : '';
-        return `<tr><td class="mono">${esc(s.service)}</td><td>${badge(labels[s.indicator] ?? '未知', tone)}${s.error ? ` <span class="reason">${esc(s.error)}</span>` : ''}</td><td>${esc(s.description ?? '—')}</td></tr>`;
+        return `<tr><td class="mono">${esc(s.service)}</td><td><span class="pill ${tone}">${labels[s.indicator] ?? '未知'}</span>${s.error ? ` <span class="reason">${esc(s.error)}</span>` : ''}</td><td>${esc(s.description ?? '—')}</td></tr>`;
       }).join('')}
     </tbody></table>`;
     return;
@@ -269,33 +268,28 @@ function renderTool(name, data, el) {
   if (name === 'domain') {
     const r = data.rdap ?? {};
     el.innerHTML = `
-      <h3 class="tool-sub">DNS</h3>
-      ${rows([
-        row('A', data.dns.a.join(' · ') || dash, { mono: true }),
-        row('AAAA', data.dns.aaaa.join(' · ') || dash, { mono: true }),
-        row('CNAME', data.dns.cname.join(' · ') || dash, { mono: true }),
-        row('CDN', data.cdn.isCdn ? `${esc(data.cdn.provider)}${data.cdn.evidence ? `（${esc(data.cdn.evidence)}）` : ''}` : '未检测到'),
-      ])}
-      <h3 class="tool-sub">WHOIS（RDAP）</h3>
-      ${rows([
-        row('注册局', r.registrar || dash),
-        row('注册时间', r.created ? r.created.slice(0, 10) : dash, { mono: true }),
-        row('到期时间', r.expires ? r.expires.slice(0, 10) : dash, { mono: true }),
-        row('NS', (r.nameservers ?? []).join(' · ') || dash, { mono: true }),
-        row('状态', (r.status ?? []).join(' · ') || dash, { mono: true }),
-        row('滥用邮箱', r.abuseEmail || dash, { mono: true }),
-      ])}`;
+      <p class="status" style="text-align:left;margin:0 0 8px">DNS 解析与注册信息</p>
+      <dl class="kv">
+        <div><dt>A</dt><dd>${data.dns.a.map(esc).join(' · ') || '—'}</dd></div>
+        <div><dt>AAAA</dt><dd>${data.dns.aaaa.map(esc).join(' · ') || '—'}</dd></div>
+        <div><dt>CNAME</dt><dd>${data.dns.cname.map(esc).join(' · ') || '—'}</dd></div>
+        <div><dt>CDN</dt><dd>${data.cdn.isCdn ? `${esc(data.cdn.provider)}${data.cdn.evidence ? `（${esc(data.cdn.evidence)}）` : ''}` : '未检测到'}</dd></div>
+        <div><dt>注册局</dt><dd>${esc(r.registrar ?? '—')}</dd></div>
+        <div><dt>注册 / 到期</dt><dd>${[r.created, r.expires].filter(Boolean).map((d) => esc(d.slice(0, 10))).join(' → ') || '—'}</dd></div>
+        <div><dt>NS</dt><dd>${(r.nameservers ?? []).map(esc).join(' · ') || '—'}</dd></div>
+        <div><dt>滥用邮箱</dt><dd>${esc(r.abuseEmail ?? '—')}</dd></div>
+      </dl>`;
     return;
   }
   if (name === 'ping') {
-    const head = `<p class="status" style="text-align:left">测量状态：${esc(data.status)} · 目标：${esc(data.target)}</p>`;
+    const head = `<p class="status" style="text-align:left;margin:0 0 8px">测量状态：${esc(data.status)} · 目标：${esc(data.target)}</p>`;
     el.innerHTML = head + `<table class="meta-table"><thead><tr><th>探针</th><th>结果</th></tr></thead><tbody>
       ${data.results.map((p) => {
         let out = '';
         if (data.type === 'ping') out = p.rttMs != null ? `${p.rttMs} ms（${p.minMs}–${p.maxMs}）` : (p.error ?? '—');
         else if (data.type === 'http') out = p.statusCode != null ? `HTTP ${p.statusCode} · ${p.totalMs != null ? `${p.totalMs} ms` : ''}` : (p.error ?? '—');
-        else if (data.type === 'dns') out = p.records.length ? p.records.join(' · ') : (p.error ?? '—');
-        return `<tr><td>${esc([p.city, p.country].filter(Boolean).join(', ') || '—')}${p.asn != null ? ` <span class="mono">AS${p.asn}</span>` : ''}</td><td class="mono">${esc(out)}</td></tr>`;
+        else if (data.type === 'dns') out = p.records.length ? p.records.map(esc).join(' · ') : (p.error ?? '—');
+        return `<tr><td>${esc([p.city, p.country].filter(Boolean).join(', ') || '—')}${p.asn != null ? ` <span class="mono">AS${p.asn}</span>` : ''}</td><td class="mono">${out}</td></tr>`;
       }).join('')}
     </tbody></table>`;
     return;
@@ -303,8 +297,8 @@ function renderTool(name, data, el) {
   el.innerHTML = `<pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
 }
 
-// —— 事件 ——
-form.addEventListener('submit', (e) => {
+/* —— 事件 —— */
+form?.addEventListener('submit', (e) => {
   e.preventDefault();
   const ip = input.value.trim();
   lookup(ip || null);
@@ -325,10 +319,16 @@ $('#history')?.addEventListener('click', (e) => {
   }
 });
 
-$('#tool-probe .tool-go')?.addEventListener('click', () => {
+$('#theme-toggle')?.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('cfip-theme', next); } catch { /* 忽略 */ }
+});
+
+$('#tool-probe-go')?.addEventListener('click', () => {
   runTool('probe', '/api/probe', $('#tool-probe-body'));
 });
-$('#tool-status .tool-go')?.addEventListener('click', () => {
+$('#tool-status-go')?.addEventListener('click', () => {
   runTool('status', '/api/status', $('#tool-status-body'));
 });
 $('#domain-form')?.addEventListener('submit', (e) => {
@@ -343,7 +343,7 @@ $('#ping-form')?.addEventListener('submit', (e) => {
   if (t) runTool('ping', `/api/ping?target=${encodeURIComponent(t)}&type=${encodeURIComponent(type)}`, $('#tool-ping-body'));
 });
 
-// —— 启动：深链 ?ip= 或查询本机；渲染查询历史 ——
+/* —— 启动：深链 ?ip= 或查询本机；渲染查询历史 —— */
 function boot() {
   renderHistory();
   const paramIp = new URLSearchParams(location.search).get('ip');

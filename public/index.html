@@ -1,103 +1,136 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="dark light">
   <title>IP 查询 · CFIP</title>
   <meta name="description" content="IP 地址详细信息查询：归属地、运营商、ASN、节点、黑名单与代理识别，附出口探测、域名工具箱、全球 Ping 与服务状态">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/style.css">
+  <script>
+    // 主题防闪烁：优先用户选择，其次系统偏好
+    document.documentElement.dataset.theme =
+      localStorage.getItem('cfip-theme') ??
+      (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  </script>
 </head>
 <body>
-  <main class="wrap">
-    <header class="site-header">
-      <h1>IP 查询</h1>
-      <p class="subtitle">归属地 · 运营商 · ASN · 节点归属 · 反向解析 · 黑名单与代理识别</p>
-    </header>
+  <div class="topbar">
+    <div class="brand">CF<b>IP</b></div>
+    <nav><a class="on">概览</a><a href="#tools">工具</a></nav>
+    <a class="ztsite" href="https://www.ztsite.com" target="_blank" rel="noopener">ZT折腾簿 ↗</a>
+    <button class="toggle" id="theme-toggle" title="切换主题">◐</button>
+  </div>
 
-    <section class="card search-card">
-      <form id="search-form" autocomplete="off">
-        <input id="ip-input" type="text" inputmode="url" autocomplete="off" spellcheck="false"
-               placeholder="输入 IPv4 / IPv6，留空查询本机 IP" aria-label="IP 地址">
-        <button id="btn-query" type="submit">查询</button>
-      </form>
-      <div class="chips" id="chips">
-        <span class="chips-label">示例</span>
-        <button type="button" class="chip" data-ip="8.8.8.8">8.8.8.8</button>
-        <button type="button" class="chip" data-ip="1.1.1.1">1.1.1.1</button>
-        <button type="button" class="chip" data-ip="114.114.114.114">114.114.114.114</button>
-        <button type="button" class="chip" data-ip="223.104.60.60">223.104.60.60</button>
-        <button type="button" class="chip" data-ip="2606:4700::1111">2606:4700::1111</button>
-      </div>
-      <div class="chips" id="history" hidden></div>
-    </section>
+  <div class="shell">
+    <div class="searchbar">
+      <input id="ip-input" value="" placeholder="输入 IPv4 / IPv6，留空查询本机 IP" spellcheck="false" aria-label="IP 地址">
+      <button id="btn-query">查询</button>
+    </div>
+    <div class="chips" id="chips">
+      <span class="chips-label">示例</span>
+      <button type="button" class="chip" data-ip="8.8.8.8">8.8.8.8</button>
+      <button type="button" class="chip" data-ip="1.1.1.1">1.1.1.1</button>
+      <button type="button" class="chip" data-ip="114.114.114.114">114.114.114.114</button>
+      <button type="button" class="chip" data-ip="223.104.60.60">223.104.60.60</button>
+      <button type="button" class="chip" data-ip="2606:4700::1111">2606:4700::1111</button>
+    </div>
+    <div class="chips" id="history" hidden></div>
 
     <p id="status" class="status" hidden></p>
 
     <section id="result" hidden>
-      <div class="card zone" id="zone-ip"></div>
-      <div class="card zone" id="zone-location"></div>
-      <div class="card zone" id="zone-network"></div>
-      <div class="card zone" id="zone-node"></div>
-      <div class="card zone" id="zone-reputation"></div>
-      <div class="card zone" id="zone-connection" hidden></div>
-      <div class="card zone" id="zone-meta"></div>
-      <details class="card zone" id="raw-json">
-        <summary>原始 JSON</summary>
-        <pre id="raw-json-body"></pre>
-      </details>
-    </section>
-
-    <section class="tools">
-      <h2 class="tools-title">工具箱</h2>
-
-      <div class="card tool" id="tool-probe">
-        <h3>出口探测 <button type="button" class="tool-go" data-tool="probe">运行</button></h3>
-        <p class="tool-hint">并发探测 Cloudflare / OpenAI / Anthropic / Grok / Google / GitHub —— CF 前端站点会返回服务视角的出口 IP 与边缘节点</p>
-        <div class="tool-body" id="tool-probe-body" hidden></div>
+      <div class="kpis">
+        <div class="kpi"><div class="label">IP Address</div><div class="value" id="kpi-ip">—</div><div class="sub" id="kpi-ip-sub"></div></div>
+        <div class="kpi"><div class="label">Location</div><div class="value" id="kpi-loc">—</div><div class="sub" id="kpi-loc-sub"></div></div>
+        <div class="kpi"><div class="label">Network</div><div class="value" id="kpi-net">—</div><div class="sub" id="kpi-net-sub"></div></div>
+        <div class="kpi"><div class="label">Risk</div><div class="value" id="kpi-risk">—</div><div class="sub" id="kpi-risk-sub"></div></div>
       </div>
 
-      <div class="card tool" id="tool-domain">
-        <h3>域名工具箱</h3>
-        <form id="domain-form" class="tool-form" autocomplete="off">
-          <input id="domain-input" type="text" placeholder="example.com" spellcheck="false" aria-label="域名">
-          <button type="submit">查询</button>
-        </form>
-        <p class="tool-hint">DoH 解析 A/AAAA/CNAME + CDN 识别 + RDAP 注册信息（注册局 / 时间 / NS）</p>
-        <div class="tool-body" id="tool-domain-body" hidden></div>
-      </div>
-
-      <div class="card tool" id="tool-ping">
-        <h3>全球 Ping（Globalping）</h3>
-        <form id="ping-form" class="tool-form" autocomplete="off">
-          <input id="ping-input" type="text" placeholder="IP 或域名" spellcheck="false" aria-label="目标">
-          <select id="ping-type" aria-label="测量类型">
-            <option value="ping">ping</option>
-            <option value="http">http</option>
-            <option value="dns">dns</option>
-          </select>
-          <button type="submit">运行</button>
-        </form>
-        <p class="tool-hint">从全球分布式探针测量目标（匿名 250 次/小时），结果缓存 5 分钟</p>
-        <div class="tool-body" id="tool-ping-body" hidden></div>
-      </div>
-
-      <div class="card tool" id="tool-status">
-        <h3>服务状态 <button type="button" class="tool-go" data-tool="status">刷新</button></h3>
-        <p class="tool-hint">Cloudflare / GitHub / OpenAI / Anthropic 官方状态页聚合</p>
-        <div class="tool-body" id="tool-status-body" hidden></div>
+      <div class="grid2">
+        <div class="panel">
+          <h3>地理位置 <span class="src">多源聚合</span></h3>
+          <div id="panel-location"></div>
+        </div>
+        <div class="panel">
+          <h3>网络与注册 <span class="src">RDAP + 多源</span></h3>
+          <div id="panel-network"></div>
+        </div>
+        <div class="panel">
+          <h3>节点归属 <span class="src">ASN + 判定</span></h3>
+          <div id="panel-node"></div>
+        </div>
+        <div class="panel">
+          <h3>信誉与风险 <span class="src">DoH DNSBL</span></h3>
+          <div id="panel-reputation"></div>
+        </div>
+        <div class="panel full" id="panel-connection-wrap" hidden>
+          <h3>连接信息 <span class="src">request.cf</span></h3>
+          <div id="panel-connection"></div>
+        </div>
+        <div class="panel full">
+          <h3>查询元信息 <span class="src">sources</span></h3>
+          <div id="panel-meta"></div>
+        </div>
+        <details class="panel full" id="raw-json">
+          <summary>原始 JSON</summary>
+          <pre id="raw-json-body"></pre>
+        </details>
       </div>
     </section>
 
-    <footer class="site-footer">
-      <p>数据源：<a href="https://ipwho.is" target="_blank" rel="noopener">ipwho.is</a> ·
-        <a href="https://ip-api.com" target="_blank" rel="noopener">ip-api.com</a> ·
-        <a href="https://github.com/lionsoul2014/ip2region" target="_blank" rel="noopener">ip2region</a> ·
-        RDAP · Cloudflare DoH · bgp.tools · <a href="https://globalping.io" target="_blank" rel="noopener">Globalping</a></p>
-      <p>不记录查询日志，不存储查询数据 · 部署于 Cloudflare Workers</p>
-    </footer>
-  </main>
+    <section class="tools" id="tools">
+      <h3 class="tools-title">工具箱</h3>
+
+      <div class="tools-grid">
+        <div class="tool" id="tool-probe">
+          <div class="tool-head"><b>出口探测</b><button type="button" class="tool-go" id="tool-probe-go">运行</button></div>
+          <span>并发探测 CF / OpenAI / Anthropic / Grok / Google / GitHub —— CF 前端站点返回服务视角的出口 IP 与边缘节点</span>
+          <div class="tool-body" id="tool-probe-body" hidden></div>
+        </div>
+        <div class="tool" id="tool-domain">
+          <div class="tool-head"><b>域名工具箱</b></div>
+          <form id="domain-form" class="tool-form" autocomplete="off">
+            <input id="domain-input" type="text" placeholder="example.com" spellcheck="false" aria-label="域名">
+            <button type="submit">查询</button>
+          </form>
+          <span>DoH 解析 A/AAAA/CNAME + CDN 识别 + RDAP WHOIS</span>
+          <div class="tool-body" id="tool-domain-body" hidden></div>
+        </div>
+        <div class="tool" id="tool-ping">
+          <div class="tool-head"><b>全球 Ping</b></div>
+          <form id="ping-form" class="tool-form" autocomplete="off">
+            <input id="ping-input" type="text" placeholder="IP 或域名" spellcheck="false" aria-label="目标">
+            <select id="ping-type" aria-label="测量类型">
+              <option value="ping">ping</option>
+              <option value="http">http</option>
+              <option value="dns">dns</option>
+            </select>
+            <button type="submit">运行</button>
+          </form>
+          <span>Globalping 全球探针测量 · 匿名 250 次/h · 缓存 5 分钟</span>
+          <div class="tool-body" id="tool-ping-body" hidden></div>
+        </div>
+        <div class="tool" id="tool-status">
+          <div class="tool-head"><b>服务状态</b><button type="button" class="tool-go" id="tool-status-go">刷新</button></div>
+          <span>Cloudflare / GitHub / OpenAI / Anthropic 官方状态页聚合 · 缓存 60 秒</span>
+          <div class="tool-body" id="tool-status-body" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="promo">
+      <div class="promo-icon">ZT</div>
+      <div class="promo-copy">
+        <b>ZT折腾簿 <span>ztsite.com</span></b>
+        <p>网址导航 & 博客 —— 折腾不止，导航不迷路。更多自托管、效率工具与折腾记录都在这里。</p>
+      </div>
+      <a class="promo-go" href="https://www.ztsite.com" target="_blank" rel="noopener">访问 ↗</a>
+    </div>
+
+    <footer>CFIP · 零外部请求 · 不记录查询日志 · 部署于 Cloudflare Workers</footer>
+  </div>
   <script src="/assets/app.js" type="module"></script>
 </body>
 </html>

@@ -30,10 +30,12 @@
 ```bash
 curl https://<your-worker>.workers.dev/api?ip=8.8.8.8
 curl https://<your-worker>.workers.dev/ip
+curl -s https://<your-worker>.workers.dev/api/probe | head -30   # 出口探测
+curl -s https://<your-worker>.workers.dev/api/domain?domain=github.com | head -30
 curl -s https://<your-worker>.workers.dev | head -20   # 纯文本摘要
 ```
 
-JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connection`（仅自身查询）/ `meta`（数据源状态、耗时、warnings）。判定类字段（如 `node.hosting`）带 `confidence` 与 `source`，标注推断强度。
+JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connection`（仅自身查询）/ `comparison`（多源位置对比）/ `meta`（数据源状态、耗时、warnings）。判定类字段（如 `node.hosting`）带 `confidence` 与 `source`，标注推断强度。
 
 ## 数据源
 
@@ -44,7 +46,7 @@ JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connect
 | ip-api.com（二级） | 地理、ISP/ORG/AS、移动/托管/代理、rDNS 兜底 | 否 | 45/分钟 | `ENABLE_IPAPI=false` 可关 |
 | ip2region 离线库 | **国内中文省/市/运营商**（xdb 随 Workers Assets 部署，仅 IPv4） | 否 | 无 | 缺数据时 warning，中文归属退化为在线源 |
 | RDAP（rdap.org 引导） | 网段 CIDR、RIR、注册时间、滥用投诉邮箱、用途类型 | 否 | 无 | network 段留空 |
-| Cloudflare DoH | rDNS 反解、5 个 DNSBL 黑名单（含命中原因 TXT） | 否 | 无 | rdnsError |
+| Cloudflare DoH | rDNS 反解、5 个 DNSBL 黑名单（含命中原因 TXT）、域名解析 | 否 | 无 | rdnsError / 空记录 |
 | bgp.tools | ASN 名称/描述/注册国家（已知 ASN 时触发） | 否 | 无 | 忽略 |
 | Globalping | 全球分布式探针（ping/http/dns 测量，`/api/ping`） | 否 | 匿名 250 次/h | 429 时提示稍后再试 |
 | Statuspage（CF/GH/OpenAI/Anthropic） | 服务状态聚合（`/api/status`） | 否 | 无 | 字段置空 |
@@ -79,7 +81,8 @@ GH_TOKEN=<有 Contents 写权限的 PAT> npm run xdb:sync
 ```bash
 npx wrangler dev
 curl "http://localhost:8787/api?ip=114.114.114.114"
-npm test          # 102 个测试（ip/merge/xdb/render/adapters/handler 集成）
+curl "http://localhost:8787/api/probe"
+npm test          # 122 个测试（ip/merge/xdb/render/tools/adapters/handler 集成）
 ```
 
 ### 4. 部署
@@ -111,14 +114,15 @@ npx wrangler deploy
 ## 架构
 
 ```
-请求 → 路由(/api | /ip | / + UA 协商 | ASSETS)
+请求 → 路由(/api | /ip | /api/probe | /api/domain | /api/ping | /api/status
+              | / + UA 协商 | ASSETS)
   → parseIp 校验/规范化 → classifyIp（非公网短路，零外部请求）
   → Cache API 读取（仅显式 ?ip=；过半衰期后台刷新）
   → 并行适配器（Promise.allSettled + 每源超时 + 熔断）
   → bgptools 条件追加轮（已知 ASN 时）
   → mergeResults 字段级优先级合并（priorities.ts）
   → 静态 ASN 映射兜底（provider-map.ts：云厂商/CDN/anycast）
-  → 写缓存 → 响应（JSON / 文本 / HTML）
+  → comparison 多源位置对比 → 写缓存 → 响应（JSON / 文本 / HTML）
 ```
 
 ```
@@ -131,6 +135,8 @@ src/
 ├── respond.ts          # JSON/文本协商、UA 判定
 ├── config.ts           # 环境变量默认值
 ├── adapters/           # 9 个数据源适配器 + 注册/执行 + 优先级表 + 熔断
+├── tools/              # 工具端点：probe（出口探测）/ domain（DNS+RDAP+CDN）
+│                       #   ping（Globalping）/ status（状态聚合）/ cache（TTL 缓存）
 └── xdb/searcher.ts     # ip2region xdb 二进制查询（自实现）
 public/                 # Workers Assets：单页 + 原生 JS + CSS + data/ip2region_v4.xdb
 scripts/sync-xdb.mjs    # xdb 数据同步（下载 → Contents API 推送进仓库，随资产部署）
@@ -147,10 +153,11 @@ CSS 已预留 `@font-face`（`public/assets/fonts/DingTalk-JinBuTi-CN-subset.wof
 
 ## 设计参考
 
+- [zhihui-hu/one-ip](https://github.com/zhihui-hu/one-ip) — 一站式 IP 工具箱（功能矩阵参考：出口探测/域名工具/全球 Ping/服务状态）
 - [jinhuaitao/My-IP](https://github.com/jinhuaitao/My-IP) — Worker IP 信息页（UA 协商、端点设计）
 - [Adgerlee/CF-IPInfo](https://github.com/Adgerlee/CF-IPInfo) — 仪表盘与多语言
 - [slchris/iptools](https://github.com/slchris/iptools) — wrangler 工程布局
-- [v1xingyue/geo-sdk-worker](https://github.com/qixingyue/geo-sdk-worker) — TS + Vitest + KV + Assets
+- [v1xingyue/geo-sdk-worker](https://github.com/qixingyue/geo-sdk-worker) — TS + Vitest + Assets
 - [yack-security/CFWorker_PublicIP](https://github.com/yack-security/CFWorker_PublicIP) — ip-api + DoH
 - [lionsoul2014/ip2region](https://github.com/lionsoul2014/ip2region) — 离线中文 IP 数据
 
@@ -159,6 +166,7 @@ CSS 已预留 `@font-face`（`public/assets/fonts/DingTalk-JinBuTi-CN-subset.wof
 - ip2region 仅 IPv4（见上）；「住宅宽带 vs 托管」无权威免费源，`isBroadband` 明确标注为推断
 - Cloudflare 平台侧的标准请求日志不受应用控制；应用侧本身零日志零存储
 - IP 地理定位精度取决于数据源，城市级为行业常态；DNSBL 逐列表独立展示，不下单一结论
+- 出口探测反映的是 **Worker 共享出口**在服务方的视角，不代表访客本机网络；Globalping 匿名额度按出口 IP 共享，高峰期可能触发 429
 
 ## License
 

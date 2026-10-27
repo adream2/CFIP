@@ -1,6 +1,7 @@
 /** CFIP 前端逻辑：仪表盘渲染、工具箱、查询历史。零外部依赖。 */
 
 import { esc, dash, flagEmoji, row, rows, badge, judgement, yn, mapSvg } from './render.js';
+import { initSitePlugins } from './site-plugins.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -346,6 +347,7 @@ $('#ping-form')?.addEventListener('submit', (e) => {
 /* —— 启动：深链 ?ip= 或查询本机；渲染查询历史 —— */
 function boot() {
   renderHistory();
+  initSitePlugins();
   const paramIp = new URLSearchParams(location.search).get('ip');
   if (paramIp) {
     input.value = paramIp;

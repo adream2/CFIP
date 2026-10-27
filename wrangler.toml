@@ -24,3 +24,14 @@ UPSTREAM_TIMEOUT_MS = "6000"
 # 可选数据源（不配置则对应适配器自动停用）：
 #   npx wrangler secret put IPINFO_TOKEN    # ipinfo.io（5 万次/月免费）
 #   npx wrangler secret put ABUSEIPDB_KEY   # AbuseIPDB（1000 次/天免费）
+
+# 可选统计 / 广告（公开 ID，非 secret；非空时覆盖前端 public/assets/site-config.js）
+# 也可直接改 site-config.js，无需动这里。留空/注释 = 关闭，保持零外部请求。
+# [vars]
+# SITE_GA4_ID = "G-XXXXXXXXXX"
+# SITE_BING_UET = "12345678"
+# SITE_BAIDU_ID = "0123456789abcdef0123456789abcdef"
+# SITE_CF_ANALYTICS_TOKEN = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# ADSENSE_CLIENT = "ca-pub-XXXXXXXXXXXXXXXX"
+# ADSENSE_SLOT_AFTER_RESULT = "1234567890"
+# ADSENSE_SLOT_BEFORE_FOOTER = "0987654321"

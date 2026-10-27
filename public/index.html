@@ -83,6 +83,9 @@
       </div>
     </section>
 
+    <!-- 广告位：在 site-config.js 填 adsense.client + slots.afterResult 后显示，否则保持隐藏 -->
+    <div class="ad-slot" data-ad-slot="afterResult" hidden></div>
+
     <section class="tools" id="tools">
       <h3 class="tools-title">工具箱</h3>
 
@@ -123,6 +126,9 @@
       </div>
     </section>
 
+    <!-- 广告位：在 site-config.js 填 adsense.client + slots.beforeFooter 后显示，否则保持隐藏 -->
+    <div class="ad-slot" data-ad-slot="beforeFooter" hidden></div>
+
     <div class="promo">
       <div class="promo-icon">ZT</div>
       <div class="promo-copy">
@@ -132,7 +138,7 @@
       <a class="promo-go" href="https://www.ztsite.com" target="_blank" rel="noopener">访问 ↗</a>
     </div>
 
-    <footer>CFIP · <a href="https://github.com/adream2/CFIP" target="_blank" rel="noopener">GitHub</a> · 零外部请求 · 不记录查询日志 · 部署于 Cloudflare Workers</footer>
+    <footer>CFIP · <a href="https://github.com/adream2/CFIP" target="_blank" rel="noopener">GitHub</a> · <span id="footer-note">零外部请求</span> · 不记录查询日志 · 部署于 Cloudflare Workers</footer>
   </div>
   <script src="/assets/app.js" type="module"></script>
 </body>

@@ -10,7 +10,7 @@
 - 零密钥可用：所有默认数据源均无需 API Key
 - 多源聚合 + 字段级优先级合并 + 单源熔断降级 + 多源位置对比
 - 内置工具箱：出口探测 / 域名工具箱 / 全球 Ping / 服务状态（借鉴 one-ip，零 Key）
-- 前端零外部请求：内联 SVG 地图、localStorage 查询历史、无 CDN 无统计脚本
+- 前端零外部请求：内联 SVG 地图、localStorage 查询历史、无 CDN 无统计脚本（统计/广告为可选项，默认关闭）
 - 6 小时结果缓存（Cache API），共享出口限流友好
 - 隐私：不记录查询日志、不建查询数据库，仅缓存
 
@@ -25,6 +25,7 @@
 | `/api/domain?domain=` | 域名工具箱：DoH 解析 + CDN 识别 + RDAP WHOIS |
 | `/api/ping?target=&type=` | 全球 Ping（Globalping，ping/http/dns，匿名 250 次/h） |
 | `/api/status` | 服务状态聚合（Cloudflare/GitHub/OpenAI/Anthropic） |
+| `/api/site-config` | 统计/广告配置（来自 Workers 变量，空值表示未启用） |
 | `?ip=example.com` | *（规划中）域名先经 DoH 解析再查询 |
 
 ```bash
@@ -110,6 +111,35 @@ npx wrangler deploy
 | `DNSBL_TTL_SEC` | `3600` | 黑名单缓存（1h，变化快） |
 | `ENABLE_IPAPI` | `true` | ip-api.com 降级源开关 |
 | `UPSTREAM_TIMEOUT_MS` | `6000` | 单源超时 |
+
+## 统计与广告（可选，默认全关）
+
+默认不加载任何第三方脚本，保持「零外部请求」。接入有两个入口，**二选一即可**：
+
+**方式 A：改本地文件（推荐，最简单）** —— 编辑 `public/assets/site-config.js`，填 ID 后 push，自动部署生效：
+
+```js
+export const siteConfig = {
+  analytics: { ga4: '', bing: '', baidu: '', cloudflare: '' },   // 留空 = 关闭
+  adsense: { client: '', slots: { afterResult: '', beforeFooter: '' } },
+};
+```
+
+**方式 B：Workers 变量** —— 在 `wrangler.toml` 的 `[vars]`（或 Dashboard → Settings → Variables）添加同名变量，非空时覆盖本地文件：
+
+| 变量 | 说明 |
+| --- | --- |
+| `SITE_GA4_ID` | GA4 测量 ID，`G-XXXXXXXXXX` |
+| `SITE_BING_UET` | Bing UET 标签 ID（纯数字） |
+| `SITE_BAIDU_ID` | 百度统计 `hm.js` id（32 位 hex） |
+| `SITE_CF_ANALYTICS_TOKEN` | Cloudflare Web Analytics token（无 Cookie，CF 部署首选） |
+| `ADSENSE_CLIENT` | AdSense 发布商 ID，`ca-pub-XXXXXXXXXXXXXXXX` |
+| `ADSENSE_SLOT_AFTER_RESULT` | 结果区下方广告单元 slot |
+| `ADSENSE_SLOT_BEFORE_FOOTER` | 页脚推广卡上方广告单元 slot |
+
+前端启动时读 `/api/site-config`（1.5s 超时，失败静默回落本地文件），任一插件启用后页脚「零外部请求」自动改为「统计/广告已启用」。
+
+> AdSense 投放欧盟用户需自行接入 Google 认证的 CMP（同意管理平台）；本项目不含 Cookie 同意弹窗。
 
 ## 架构
 

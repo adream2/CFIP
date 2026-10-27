@@ -233,6 +233,17 @@ export default {
       return jsonTool(data, hit, t0);
     }
 
+    // —— 前端统计/广告配置（公开 ID，空值即未启用） ——
+    if (url.pathname === '/api/site-config') {
+      return new Response(JSON.stringify(siteConfigOf(env)), {
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          ...corsHeaders(),
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+
     if (!isApi && !isRoot) {
       // 静态资源委托（含 404）
       return env.ASSETS.fetch(request);
@@ -316,4 +327,23 @@ function jsonTool(data: unknown, hit: boolean, t0: number): Response {
       'X-Response-Time': `${Date.now() - t0}ms`,
     },
   });
+}
+
+/** 统计/广告配置：Workers 变量（空则前端回落 site-config.js） */
+function siteConfigOf(env: Env) {
+  return {
+    analytics: {
+      ga4: env.SITE_GA4_ID ?? '',
+      bing: env.SITE_BING_UET ?? '',
+      baidu: env.SITE_BAIDU_ID ?? '',
+      cloudflare: env.SITE_CF_ANALYTICS_TOKEN ?? '',
+    },
+    adsense: {
+      client: env.ADSENSE_CLIENT ?? '',
+      slots: {
+        afterResult: env.ADSENSE_SLOT_AFTER_RESULT ?? '',
+        beforeFooter: env.ADSENSE_SLOT_BEFORE_FOOTER ?? '',
+      },
+    },
+  };
 }

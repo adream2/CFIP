@@ -122,6 +122,16 @@ describe('路由与响应协商', () => {
     expect(page).toContain('工具箱');
     expect(page).toContain('出口探测');
   });
+
+  it('/api/site-config 默认全空（未接入统计/广告）', async () => {
+    const res = await SELF.fetch('https://example.com/api/site-config');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe('no-store');
+    const j = (await res.json()) as Record<string, any>;
+    expect(j.analytics).toEqual({ ga4: '', bing: '', baidu: '', cloudflare: '' });
+    expect(j.adsense.client).toBe('');
+    expect(j.adsense.slots).toEqual({ afterResult: '', beforeFooter: '' });
+  });
 });
 
 describe('查询主流程', () => {

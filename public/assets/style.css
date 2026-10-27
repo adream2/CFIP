@@ -141,6 +141,11 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
 
 footer { margin-top: 26px; text-align: center; font-size: 12px; color: var(--text2); }
 
+/* —— 广告位（默认隐藏；site-config.js 配置后才渲染） —— */
+.ad-slot { margin: 18px 0; }
+.ad-slot[hidden] { display: none; }
+.ad-slot ins { display: block; }
+
 @media (max-width: 820px) { .kpis, .grid2, .tools-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) {
   .kpis, .grid2, .tools-grid { grid-template-columns: 1fr; }

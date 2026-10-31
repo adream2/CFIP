@@ -22,6 +22,8 @@ import { mergeResults } from './merge';
 import { loadConfig } from './config';
 import { cacheAgeMs, readCache, writeCache } from './cache';
 import { corsHeaders, errorJson, jsonResponse, toTextSummary, wantsText } from './respond';
+import { withHtmlRender } from './inject';
+import { siteOrigin, robotsTxt, sitemapXml, llmsTxt } from './seo';
 import { withCache } from './tools/cache';
 import { runProbes } from './tools/probe';
 import { runDomainReport, isValidDomain } from './tools/domain';
@@ -170,6 +172,40 @@ function shortCircuit(ip: string, isSelf: boolean, request: Request, env: Env): 
   return info;
 }
 
+/**
+ * 静态资源委托。HTML 出站前统一渲染：替换站点绝对地址占位符
+ * （canonical / og:url / JSON-LD），并按 HEAD_INJECT 注入 <head> 片段。
+ */
+async function assets(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const isPage = url.pathname === '/' || /\.html?$/i.test(url.pathname);
+
+  // 条件请求头只对页面路径掐掉：HTML 每次都要重写（地址占位符 + ETag 重算），
+  // 若让资产层直接回 304 空体，浏览器会一直用注入前的旧页面；
+  // JS/CSS 保持原样，以留住 304 协商。
+  let req = request;
+  if (isPage) {
+    req = new Request(request);
+    req.headers.delete('if-none-match');
+    req.headers.delete('if-modified-since');
+  }
+
+  return withHtmlRender(request, await env.ASSETS.fetch(req), {
+    origin: siteOrigin(url, env),
+    head: env.HEAD_INJECT,
+  });
+}
+
+/** SEO / GEO 文本端点：内容随域名变化，边缘缓存 1 小时 */
+function seoResponse(body: string, contentType: string): Response {
+  return new Response(body, {
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=3600',
+    },
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const t0 = Date.now();
@@ -244,14 +280,25 @@ export default {
       });
     }
 
+    // —— SEO / GEO：域名自适应的 robots / sitemap / llms.txt ——
+    if (url.pathname === '/robots.txt') {
+      return seoResponse(robotsTxt(siteOrigin(url, env)), 'text/plain; charset=utf-8');
+    }
+    if (url.pathname === '/sitemap.xml') {
+      return seoResponse(sitemapXml(siteOrigin(url, env)), 'application/xml; charset=utf-8');
+    }
+    if (url.pathname === '/llms.txt') {
+      return seoResponse(llmsTxt(siteOrigin(url, env)), 'text/plain; charset=utf-8');
+    }
+
     if (!isApi && !isRoot) {
       // 静态资源委托（含 404）
-      return env.ASSETS.fetch(request);
+      return assets(request, env);
     }
 
     // —— 根路径：浏览器走 HTML（Assets），命令行走文本摘要 ——
     if (isRoot && !wantsText(request)) {
-      return env.ASSETS.fetch(request);
+      return assets(request, env);
     }
 
     // —— 解析目标 IP ——

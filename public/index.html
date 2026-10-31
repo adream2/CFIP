@@ -4,10 +4,119 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <title>IP 查询 · CFIP</title>
-  <meta name="description" content="IP 地址详细信息查询：归属地、运营商、ASN、节点、黑名单与代理识别，附出口探测、域名工具箱、全球 Ping 与服务状态">
+  <meta name="theme-color" content="#0d1117">
+  <title>IP 查询 · CFIP — 归属地 / ASN / 黑名单 / 代理检测</title>
+  <meta name="description" content="输入 IPv4 / IPv6 一键查询 IP 归属地（国家/省/市/邮编/经纬度/时区）、运营商、ASN、节点归属、反向解析、DNSBL 黑名单与代理/VPN/Tor 识别，附出口探测、域名工具箱、全球 Ping 与免费 JSON API。">
+  <meta name="keywords" content="IP查询,IP地址查询,IP归属地,IP定位,ASN查询,ASN归属,Whois查询,RDNS反向解析,DNSBL黑名单,IP黑名单,代理检测,VPN检测,Tor节点,IPv4查询,IPv6查询,IP信息API">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+  <meta name="author" content="CFIP">
+  <link rel="canonical" href="__SITE_ORIGIN__/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <!--HEAD_INJECT-->
   <link rel="stylesheet" href="/assets/style.css">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="CFIP">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="IP 查询 · CFIP — 归属地 / ASN / 黑名单 / 代理检测">
+  <meta property="og:description" content="多源聚合的 IP 详细信息查询：归属地、运营商、ASN、节点归属、反向解析、DNSBL 黑名单、代理/VPN/Tor 识别，附出口探测与免费 JSON API。">
+  <meta property="og:url" content="__SITE_ORIGIN__/">
+  <meta property="og:image" content="__SITE_ORIGIN__/assets/og.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="CFIP — IP 地址详细信息查询">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="IP 查询 · CFIP — 归属地 / ASN / 黑名单 / 代理检测">
+  <meta name="twitter:description" content="多源聚合的 IP 详细信息查询：归属地、运营商、ASN、黑名单、代理识别，附出口探测与免费 JSON API。">
+  <meta name="twitter:image" content="__SITE_ORIGIN__/assets/og.png">
+
+  <!-- 结构化数据：WebSite / Organization / SoftwareApplication / FAQPage -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "__SITE_ORIGIN__/#website",
+        "url": "__SITE_ORIGIN__/",
+        "name": "CFIP",
+        "alternateName": "IP 查询 · CFIP",
+        "description": "IP 地址详细信息查询工具：归属地、运营商、ASN、节点归属、反向解析、DNSBL 黑名单与代理识别。",
+        "inLanguage": "zh-CN",
+        "publisher": { "@id": "__SITE_ORIGIN__/#org" }
+      },
+      {
+        "@type": "Organization",
+        "@id": "__SITE_ORIGIN__/#org",
+        "name": "CFIP",
+        "url": "__SITE_ORIGIN__/",
+        "logo": { "@type": "ImageObject", "url": "__SITE_ORIGIN__/favicon.svg" },
+        "sameAs": ["https://github.com/adream2/CFIP", "https://www.ztsite.com"]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "CFIP",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Any (Web)",
+        "url": "__SITE_ORIGIN__/",
+        "description": "免费 IPv4 / IPv6 信息查询：归属地、ASN、节点归属、反向解析、DNSBL 黑名单、代理/VPN/Tor 识别。",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" },
+        "featureList": [
+          "IP 归属地与经纬度",
+          "运营商与 ASN 归属",
+          "云厂商 / CDN / Anycast 识别",
+          "反向解析（rDNS）与 DNSBL 黑名单",
+          "代理 / VPN / Tor 识别",
+          "出口探测、域名工具箱、全球 Ping",
+          "免费 JSON API"
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "__SITE_ORIGIN__/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "IP 归属地准确吗？为什么和实际位置有偏差？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "归属地由多个商业 IP 库（ipwho.is、ip-api、ip2region 离线库等）聚合得出，多数只能精确到城市级。移动网络、CGNAT 共享出口、企业专线与代理都会让 IP 注册地与使用者实际位置不一致，页面会给出多源位置对比，便于判断误差范围。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "查询会记录日志吗？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "不记录查询日志、不建查询数据库。仅对查询结果做最长 6 小时的边缘缓存，用于降低上游数据源压力。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "支持 IPv6 吗？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "支持 IPv6 查询。离线中文库 ip2region 仅含 IPv4，IPv6 的归属地、ASN、信誉等字段由在线数据源覆盖，功能不受影响。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "有免费 API 吗？怎么调用？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "有。/api?ip=8.8.8.8 返回完整 JSON（CORS 全开，各数据源状态与耗时都在 meta 中），/ip?ip=8.8.8.8 只返回纯文本 IP；不带 ip 参数则查询请求方自身 IP。"
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
   <script>
     // 主题防闪烁：优先用户选择，其次系统偏好
     document.documentElement.dataset.theme =
@@ -40,6 +149,10 @@
       <button type="button" class="chip" data-ip="2606:4700::1111">2606:4700::1111</button>
     </div>
     <div class="chips" id="history" hidden></div>
+
+    <noscript>
+      <p class="status">页面交互依赖 JavaScript。也可以直接用接口查询：<code>/api?ip=8.8.8.8</code> 返回完整 JSON，<code>/ip?ip=8.8.8.8</code> 返回纯文本 IP。</p>
+    </noscript>
 
     <p id="status" class="status" hidden></p>
 
@@ -128,6 +241,27 @@
 
     <!-- 广告位：在 site-config.js 填 adsense.client + slots.beforeFooter 后显示，否则保持隐藏 -->
     <div class="ad-slot" data-ad-slot="beforeFooter" hidden></div>
+
+    <section class="faq" id="faq">
+      <h3 class="tools-title">关于 CFIP · 常见问题</h3>
+      <p class="faq-lead">CFIP 是一个免费的在线 IP 信息查询工具，把归属地、运营商、ASN、节点归属、反向解析、DNSBL 黑名单与代理识别聚合到一页，并提供开放 JSON 接口。全部默认数据源均无需 API Key。</p>
+      <details>
+        <summary>IP 归属地准确吗？为什么和实际位置有偏差？</summary>
+        <p>归属地由多个商业 IP 库（ipwho.is、ip-api、ip2region 离线库等）聚合得出，多数只能精确到城市级。移动网络、CGNAT 共享出口、企业专线与代理都会让 IP 注册地与使用者实际位置不一致，页面会给出多源位置对比，便于判断误差范围。</p>
+      </details>
+      <details>
+        <summary>查询会记录日志吗？</summary>
+        <p>不记录查询日志、不建查询数据库。仅对查询结果做最长 6 小时的边缘缓存，用于降低上游数据源压力。</p>
+      </details>
+      <details>
+        <summary>支持 IPv6 吗？</summary>
+        <p>支持 IPv6 查询。离线中文库 ip2region 仅含 IPv4，IPv6 的归属地、ASN、信誉等字段由在线数据源覆盖，功能不受影响。</p>
+      </details>
+      <details>
+        <summary>有免费 API 吗？怎么调用？</summary>
+        <p><code>/api?ip=8.8.8.8</code> 返回完整 JSON（CORS 全开，各数据源状态与耗时都在 meta 中）；<code>/ip?ip=8.8.8.8</code> 只返回纯文本 IP；不带 ip 参数则查询请求方自身 IP。</p>
+      </details>
+    </section>
 
     <div class="promo">
       <div class="promo-icon">ZT</div>

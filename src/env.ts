@@ -9,6 +9,12 @@ export interface Env {
   ENABLE_IPAPI?: string;
   UPSTREAM_TIMEOUT_MS?: string;
 
+  /** 注入到 HTML <head> 的原始 HTML 片段（搜索引擎验证 meta 等），空/未配置 = 不注入 */
+  HEAD_INJECT?: string;
+
+  /** 站点绝对地址（canonical / og:url / sitemap 用），如 https://ip.example.com；空则取请求 origin */
+  SITE_URL?: string;
+
   // secrets（可选数据源，缺失时对应适配器不注册）
   IPINFO_TOKEN?: string;
   ABUSEIPDB_KEY?: string;

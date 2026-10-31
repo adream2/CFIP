@@ -21,6 +21,22 @@ ENABLE_IPAPI = "true"
 # 上游请求超时（毫秒）
 UPSTREAM_TIMEOUT_MS = "6000"
 
+# 站点绝对地址：canonical / og:url / sitemap / robots 里的 Sitemap 行都用它。
+# 留空 = 取请求的 origin（workers.dev 与自定义域都能自洽）；
+# 若同时有多个域名入口，建议固定为主域名，避免重复内容。
+# SITE_URL = "https://ip.example.com"
+
+# —— HTML <head> 代码注入（搜索引擎验证 meta 等）——
+# 留空/注释 = 不注入。内容会原样插入 index.html 的 <!--HEAD_INJECT--> 处。
+# 多行用 TOML 多行字符串（三个双引号），例如：
+# HEAD_INJECT = """
+#   <meta name="google-site-verification" content="xxxxxxxx">
+#   <meta name="msvalidate.01" content="xxxxxxxx">
+#   <meta name="baidu-site-verification" content="codeva-xxxx">
+# """
+# 非公开来源的内容请改用 `npx wrangler secret put HEAD_INJECT`，避免进仓库。
+
+
 # 可选数据源（不配置则对应适配器自动停用）：
 #   npx wrangler secret put IPINFO_TOKEN    # ipinfo.io（5 万次/月免费）
 #   npx wrangler secret put ABUSEIPDB_KEY   # AbuseIPDB（1000 次/天免费）

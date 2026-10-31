@@ -10,6 +10,7 @@
 - 零密钥可用：所有默认数据源均无需 API Key
 - 多源聚合 + 字段级优先级合并 + 单源熔断降级 + 多源位置对比
 - 内置工具箱：出口探测 / 域名工具箱 / 全球 Ping / 服务状态（借鉴 one-ip，零 Key）
+- SEO / GEO 就绪：canonical + OG/Twitter + JSON-LD（WebSite/SoftwareApplication/FAQPage）+ `robots.txt` / `sitemap.xml` / `llms.txt`，AI 爬虫显式放行
 - 前端零外部请求：内联 SVG 地图、localStorage 查询历史、无 CDN 无统计脚本（统计/广告为可选项，默认关闭）
 - 6 小时结果缓存（Cache API），共享出口限流友好
 - 隐私：不记录查询日志、不建查询数据库，仅缓存
@@ -26,6 +27,9 @@
 | `/api/ping?target=&type=` | 全球 Ping（Globalping，ping/http/dns，匿名 250 次/h） |
 | `/api/status` | 服务状态聚合（Cloudflare/GitHub/OpenAI/Anthropic） |
 | `/api/site-config` | 统计/广告配置（来自 Workers 变量，空值表示未启用） |
+| `/robots.txt` | 抓取规则（放行搜索引擎与 AI 爬虫，屏蔽 `/api`、`/ip`） |
+| `/sitemap.xml` | 站点地图（域名随请求或 `SITE_URL` 自适应） |
+| `/llms.txt` | 面向 LLM / AI 搜索的站点摘要（GEO） |
 | `?ip=example.com` | *（规划中）域名先经 DoH 解析再查询 |
 
 ```bash
@@ -83,7 +87,7 @@ GH_TOKEN=<有 Contents 写权限的 PAT> npm run xdb:sync
 npx wrangler dev
 curl "http://localhost:8787/api?ip=114.114.114.114"
 curl "http://localhost:8787/api/probe"
-npm test          # 122 个测试（ip/merge/xdb/render/tools/adapters/handler 集成）
+npm test          # 150 个测试（ip/merge/xdb/render/inject/seo/tools/adapters/handler 集成）
 ```
 
 ### 4. 部署
@@ -111,6 +115,63 @@ npx wrangler deploy
 | `DNSBL_TTL_SEC` | `3600` | 黑名单缓存（1h，变化快） |
 | `ENABLE_IPAPI` | `true` | ip-api.com 降级源开关 |
 | `UPSTREAM_TIMEOUT_MS` | `6000` | 单源超时 |
+| `HEAD_INJECT` | 空 | 注入到 HTML `<head>` 的原始片段（搜索引擎验证 meta 等），空 = 不注入 |
+| `SITE_URL` | 空 | 站点绝对地址，用于 canonical / og:url / sitemap；空 = 取请求 origin |
+
+## SEO / GEO
+
+默认就绪，不需要配置。站点是单页工具站，SEO 的着力点在「结构化数据 + 可索引正文 + 明确的抓取许可」：
+
+| 项目 | 位置 | 说明 |
+| --- | --- | --- |
+| title / description / keywords | `public/index.html` | 标题控制在 30 字内，描述覆盖全部核心查询项 |
+| canonical | 同上 | `__SITE_ORIGIN__/`，输出时替换为绝对地址；`?ip=` 参数页统一归一到首页 |
+| Open Graph / Twitter Card | 同上 | `summary_large_image`，配 1200×630 分享图 `assets/og.png` |
+| JSON-LD | 同上 | `WebSite` + `Organization` + `SoftwareApplication` + `FAQPage`（@graph） |
+| 可索引正文 | 页面「关于 CFIP · 常见问题」 | 4 组问答（`<details>`），与 `FAQPage` 结构化数据一一对应 |
+| robots.txt | `/robots.txt`（Worker 动态） | 放行页面，屏蔽 `/api/`、`/ip`；显式列出 15 个 AI 爬虫 |
+| sitemap.xml | `/sitemap.xml`（Worker 动态） | 首页单条，`changefreq=weekly` |
+| llms.txt | `/llms.txt`（Worker 动态） | 给 LLM 的站点摘要：能力清单 + 接口地址 + 使用说明 |
+
+**域名自适应**：`/robots.txt`、`/sitemap.xml`、`/llms.txt`、canonical、`og:url`、JSON-LD 里的地址都取自请求 origin；若同一份 Worker 同时挂在 `*.workers.dev` 和自定义域上，建议设 `SITE_URL` 固定主域名，避免两套 canonical 互相稀释：
+
+```toml
+[vars]
+SITE_URL = "https://ip.example.com"
+```
+
+**重新生成分享图**（改配色/文案后）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/make-og.ps1
+```
+
+> `scripts/make-og.ps1` 必须带 UTF-8 BOM 保存，否则 PowerShell 5.1 会按 ANSI 解析，中文注释会吞掉后续代码行（踩过）。
+> 上线后建议在 Google Search Console / Bing 站长 / 百度搜索资源平台各提交一次 `sitemap.xml`，验证 meta 走上面的 `HEAD_INJECT`。
+
+## 头部代码注入（搜索引擎验证 meta）
+
+要加 Google / Bing / 百度 / 搜狗的站点验证 meta，**不用改 `index.html`**：给 Worker 变量 `HEAD_INJECT` 赋一段原始 HTML，服务端输出 HTML 时插到 `<head>` 里的 `<!--HEAD_INJECT-->` 位置。
+
+```toml
+[vars]
+HEAD_INJECT = """
+  <meta name="google-site-verification" content="your-google-token">
+  <meta name="msvalidate.01" content="your-bing-token">
+  <meta name="baidu-site-verification" content="codeva-xxxxxxxx">
+  <meta name="sogou_site_verification" content="xxxxxxxx">
+"""
+```
+
+也可在 Cloudflare Dashboard → Settings → Variables 里直接粘贴（改完即生效，无需改代码）。
+
+- 未设置或空字符串 = 不注入片段（HTML 仍会替换站点地址占位符，字符串级开销可忽略）
+- 支持 `<head>` 内任意内容：`meta` / `link`（preconnect）/ `script`
+- 只作用于 HTML 响应，`/api`、`/ip`、curl 文本摘要不受影响
+- 注入后正文变化，`ETag` 按渲染结果重新生成，条件请求仍走 304
+- 落点优先用 `index.html` 里的 `<!--HEAD_INJECT-->` 锚点；锚点被删也能退回 `</head>` 之前
+
+> 验证 token 本身是公开信息，但若注入统计脚本或含密钥的内容，请用 `npx wrangler secret put HEAD_INJECT`，别写进公开仓库。
 
 ## 统计与广告（可选，默认全关）
 
@@ -163,13 +224,16 @@ src/
 ├── merge.ts            # 字段级优先级合并器
 ├── cache.ts            # Cache API 封装
 ├── respond.ts          # JSON/文本协商、UA 判定
+├── inject.ts           # HTML 出站渲染：<head> 注入 + 站点地址占位符替换
+├── seo.ts              # robots.txt / sitemap.xml / llms.txt（域名自适应）
 ├── config.ts           # 环境变量默认值
 ├── adapters/           # 9 个数据源适配器 + 注册/执行 + 优先级表 + 熔断
 ├── tools/              # 工具端点：probe（出口探测）/ domain（DNS+RDAP+CDN）
 │                       #   ping（Globalping）/ status（状态聚合）/ cache（TTL 缓存）
 └── xdb/searcher.ts     # ip2region xdb 二进制查询（自实现）
-public/                 # Workers Assets：单页 + 原生 JS + CSS + data/ip2region_v4.xdb
+public/                 # Workers Assets：单页 + 原生 JS + CSS + og.png + data/ip2region_v4.xdb
 scripts/sync-xdb.mjs    # xdb 数据同步（下载 → Contents API 推送进仓库，随资产部署）
+scripts/make-og.ps1     # 生成 1200×630 分享图（GDI+，需 UTF-8 BOM）
 test/                   # Vitest（@cloudflare/vitest-pool-workers）
 ```
 

@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" content="#e9edf7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#14161d" media="(prefers-color-scheme: dark)">
   <title>IP 查询 · CFIP — 归属地 / ASN / 黑名单 / 代理检测</title>
   <meta name="description" content="输入 IPv4 / IPv6 一键查询 IP 归属地（国家/省/市/邮编/经纬度/时区）、运营商、ASN、节点归属、反向解析、DNSBL 黑名单与代理/VPN/Tor 识别，附出口探测、域名工具箱、全球 Ping 与免费 JSON API。">
   <meta name="keywords" content="IP查询,IP地址查询,IP归属地,IP定位,ASN查询,ASN归属,Whois查询,RDNS反向解析,DNSBL黑名单,IP黑名单,代理检测,VPN检测,Tor节点,IPv4查询,IPv6查询,IP信息API">
@@ -136,19 +137,27 @@
   </div>
 
   <div class="shell">
-    <form class="searchbar" id="ip-form" autocomplete="off">
-      <input id="ip-input" value="" placeholder="输入 IPv4 / IPv6，留空查询本机 IP" spellcheck="false" aria-label="IP 地址">
-      <button id="btn-query" type="submit">查询</button>
-    </form>
-    <div class="chips" id="chips">
-      <span class="chips-label">示例</span>
-      <button type="button" class="chip" data-ip="8.8.8.8">8.8.8.8</button>
-      <button type="button" class="chip" data-ip="1.1.1.1">1.1.1.1</button>
-      <button type="button" class="chip" data-ip="114.114.114.114">114.114.114.114</button>
-      <button type="button" class="chip" data-ip="223.104.60.60">223.104.60.60</button>
-      <button type="button" class="chip" data-ip="2606:4700::1111">2606:4700::1111</button>
-    </div>
-    <div class="chips" id="history" hidden></div>
+    <header class="hero">
+      <p class="eyebrow">IP Intelligence</p>
+      <h1>IP 地址详细信息查询</h1>
+      <p class="hero-lead">归属地、运营商、ASN、节点归属、反向解析、DNSBL 黑名单与代理识别，多源聚合到一页。支持 IPv4 / IPv6，留空即查本机。</p>
+    </header>
+
+    <section class="console" aria-label="IP 查询">
+      <form class="searchbar" id="ip-form" autocomplete="off">
+        <input id="ip-input" value="" placeholder="输入 IPv4 / IPv6，留空查询本机 IP" spellcheck="false" aria-label="IP 地址">
+        <button id="btn-query" type="submit">查询</button>
+      </form>
+      <div class="chips" id="chips">
+        <span class="chips-label">示例</span>
+        <button type="button" class="chip" data-ip="8.8.8.8">8.8.8.8</button>
+        <button type="button" class="chip" data-ip="1.1.1.1">1.1.1.1</button>
+        <button type="button" class="chip" data-ip="114.114.114.114">114.114.114.114</button>
+        <button type="button" class="chip" data-ip="223.104.60.60">223.104.60.60</button>
+        <button type="button" class="chip" data-ip="2606:4700::1111">2606:4700::1111</button>
+      </div>
+      <div class="chips" id="history" hidden></div>
+    </section>
 
     <noscript>
       <p class="status">页面交互依赖 JavaScript。也可以直接用接口查询：<code>/api?ip=8.8.8.8</code> 返回完整 JSON，<code>/ip?ip=8.8.8.8</code> 返回纯文本 IP。</p>
@@ -158,14 +167,14 @@
 
     <section id="result" hidden>
       <div class="kpis">
-        <div class="kpi"><div class="label">IP Address</div><div class="value" id="kpi-ip">—</div><div class="sub" id="kpi-ip-sub"></div></div>
-        <div class="kpi"><div class="label">Location</div><div class="value" id="kpi-loc">—</div><div class="sub" id="kpi-loc-sub"></div></div>
-        <div class="kpi"><div class="label">Network</div><div class="value" id="kpi-net">—</div><div class="sub" id="kpi-net-sub"></div></div>
-        <div class="kpi"><div class="label">Risk</div><div class="value" id="kpi-risk">—</div><div class="sub" id="kpi-risk-sub"></div></div>
+        <div class="kpi k-ip"><div class="label">IP Address</div><div class="value" id="kpi-ip">—</div><div class="sub" id="kpi-ip-sub"></div></div>
+        <div class="kpi k-loc"><div class="label">Location</div><div class="value" id="kpi-loc">—</div><div class="sub" id="kpi-loc-sub"></div></div>
+        <div class="kpi k-net"><div class="label">Network</div><div class="value" id="kpi-net">—</div><div class="sub" id="kpi-net-sub"></div></div>
+        <div class="kpi k-risk"><div class="label">Risk</div><div class="value" id="kpi-risk">—</div><div class="sub" id="kpi-risk-sub"></div></div>
       </div>
 
       <div class="grid2">
-        <div class="panel">
+        <div class="panel panel-loc full">
           <h3>地理位置 <span class="src">多源聚合</span></h3>
           <div id="panel-location"></div>
         </div>
@@ -177,7 +186,7 @@
           <h3>节点归属 <span class="src">ASN + 判定</span></h3>
           <div id="panel-node"></div>
         </div>
-        <div class="panel">
+        <div class="panel full">
           <h3>信誉与风险 <span class="src">DoH DNSBL</span></h3>
           <div id="panel-reputation"></div>
         </div>

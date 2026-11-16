@@ -5,7 +5,6 @@
   --mono: ui-monospace, "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
   --sans: "DingTalk JinBuTi", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
 
-  --r-xl: 20px;
   --r-lg: 14px;
   --r-md: 10px;
   --r-sm: 8px;
@@ -1010,25 +1009,7 @@ footer a:hover { color: var(--accent); }
 .hop-host { color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--sans); }
 .hop-rtt { color: var(--text2); text-align: right; }
 
-/* ===== 工具分组与实验台 ===== */
-.tools-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 20px 0 10px;
-  color: var(--text2);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-}
-
-.tools-group::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, var(--line), transparent);
-}
-
+/* ===== 实验台组件 ===== */
 .check-row {
   display: flex;
   flex-wrap: wrap;

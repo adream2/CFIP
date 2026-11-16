@@ -73,9 +73,10 @@ export function sitemapXml(origin: string): string {
 export function llmsTxt(origin: string): string {
   return `# CFIP
 
-> 免费的 IP 地址详细信息查询工具：输入 IPv4 / IPv6，一次返回归属地（国家/省/市/邮编/经纬度/时区）、
-> 运营商、ASN、节点归属（云厂商 / CDN / Anycast）、反向解析、DNSBL 黑名单、代理/VPN/Tor 识别，
-> 并附带出口探测、域名工具箱、全球 Ping 与免费 JSON API。默认数据源均无需 API Key。
+> 免费的 IP 情报与网络诊断工具：输入 IPv4 / IPv6，一次返回归属地（国家/省/市/邮编/经纬度/时区）、
+> 运营商、ASN、节点归属（云厂商 / CDN / Anycast）、原生 / 广播 IP 判定、反向解析、DNSBL 黑名单、
+> 代理/VPN/Tor 识别，并附带连通性检测、WebRTC 泄漏、浏览器指纹、测速、DNS 对比、MTR、ASN 查询、
+> 批量查询与免费 JSON API。默认数据源均无需 API Key。
 
 ## 能查什么
 

@@ -2,7 +2,7 @@
  * CFIP 站点配置 —— 统计与广告接入口
  *
  * 用法：改这里 → push → Actions 自动部署生效。留空字符串 = 关闭（默认全关，
- * 保持「零外部请求」）。也可以不改代码，改用 wrangler.toml [vars] 或
+ * 不加载第三方脚本）。也可以不改代码，改用 wrangler.toml [vars] 或
  * Cloudflare Dashboard 环境变量（同名变量非空时覆盖本文件，见 README）。
  *
  * 注意：本项目无 Cookie 同意弹窗。若面向欧盟用户投放 AdSense，

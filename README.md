@@ -97,7 +97,7 @@ GH_TOKEN=<有 Contents 写权限的 PAT> npm run xdb:sync
 npx wrangler dev
 curl "http://localhost:8787/api?ip=114.114.114.114"
 curl "http://localhost:8787/api/probe"
-npm test          # 208 个测试（ip/ip-type/calc/diag/merge/xdb/render/inject/seo/tools/dns/asn-bulk/adapters/handler 集成）
+npm test          # 211 个测试（ip/ip-type/calc/diag/merge/xdb/render/inject/seo/tools/dns/asn-bulk/adapters/handler 集成）
 ```
 
 ### 4. 部署
@@ -185,7 +185,7 @@ HEAD_INJECT = """
 
 ## 统计与广告（可选，默认全关）
 
-默认不加载任何第三方脚本，保持「零外部请求」。接入有两个入口，**二选一即可**：
+默认不加载任何第三方脚本（连通性、WebRTC、指纹、测速等诊断功能只在点击后按需联网）。接入有两个入口，**二选一即可**：
 
 **方式 A：改本地文件（推荐，最简单）** —— 编辑 `public/assets/site-config.js`，填 ID 后 push，自动部署生效：
 
@@ -208,7 +208,7 @@ export const siteConfig = {
 | `ADSENSE_SLOT_AFTER_RESULT` | 结果区下方广告单元 slot |
 | `ADSENSE_SLOT_BEFORE_FOOTER` | 页脚推广卡上方广告单元 slot |
 
-前端启动时读 `/api/site-config`（1.5s 超时，失败静默回落本地文件），任一插件启用后页脚「零外部请求」自动改为「统计/广告已启用」。
+前端启动时读 `/api/site-config`（1.5s 超时，失败静默回落本地文件），任一插件启用后页脚「按需联网 · 不上传诊断数据」自动改为「统计/广告已启用」。
 
 > AdSense 投放欧盟用户需自行接入 Google 认证的 CMP（同意管理平台）；本项目不含 Cookie 同意弹窗。
 
@@ -224,7 +224,7 @@ export const siteConfig = {
 ```
 请求 → 路由(/api | /ip | /api/probe | /api/domain | /api/dns | /api/ping | /api/status
               | /api/asn | /api/bulk | /api/speed | / + UA 协商 | ASSETS)
-  → parseIp 校验/规范化 → classifyIp（非公网短路，零外部请求）
+  → parseIp 校验/规范化 → classifyIp（非公网短路，不发起外部查询）
   → Cache API 读取（仅显式 ?ip=；过半衰期后台刷新）
   → 并行适配器（Promise.allSettled + 每源超时 + 熔断）
   → bgptools 条件追加轮（已知 ASN 时）

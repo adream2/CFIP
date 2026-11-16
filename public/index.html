@@ -24,7 +24,7 @@
   <meta property="og:site_name" content="CFIP">
   <meta property="og:locale" content="zh_CN">
   <meta property="og:title" content="IP 查询 · CFIP — 归属地 / ASN / 黑名单 / 代理检测">
-  <meta property="og:description" content="多源聚合的 IP 详细信息查询：归属地、运营商、ASN、节点归属、反向解析、DNSBL 黑名单、代理/VPN/Tor 识别，附出口探测与免费 JSON API。">
+  <meta property="og:description" content="多源聚合的 IP 情报与网络诊断：归属地、ASN、原生/广播判定、DNSBL、代理识别，附连通性检测、WebRTC 泄漏、浏览器指纹、测速与免费 JSON API。">
   <meta property="og:url" content="__SITE_ORIGIN__/">
   <meta property="og:image" content="__SITE_ORIGIN__/assets/og.png">
   <meta property="og:image:type" content="image/png">
@@ -35,7 +35,7 @@
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="IP 查询 · CFIP — 归属地 / ASN / 黑名单 / 代理检测">
-  <meta name="twitter:description" content="多源聚合的 IP 详细信息查询：归属地、运营商、ASN、黑名单、代理识别，附出口探测与免费 JSON API。">
+  <meta name="twitter:description" content="多源聚合的 IP 情报与网络诊断：归属地、ASN、原生/广播判定、DNSBL、代理识别，附连通性、WebRTC、指纹、测速与免费 API。">
   <meta name="twitter:image" content="__SITE_ORIGIN__/assets/og.png">
 
   <!-- 结构化数据：WebSite / Organization / SoftwareApplication / FAQPage -->
@@ -49,7 +49,7 @@
         "url": "__SITE_ORIGIN__/",
         "name": "CFIP",
         "alternateName": "IP 查询 · CFIP",
-        "description": "IP 地址详细信息查询工具：归属地、运营商、ASN、节点归属、反向解析、DNSBL 黑名单与代理识别。",
+        "description": "IP 情报与网络诊断工具：归属地、运营商、ASN、原生/广播判定、DNSBL 与代理识别，附连通性、WebRTC、指纹与测速。",
         "inLanguage": "zh-CN",
         "publisher": { "@id": "__SITE_ORIGIN__/#org" }
       },
@@ -67,7 +67,7 @@
         "applicationCategory": "UtilitiesApplication",
         "operatingSystem": "Any (Web)",
         "url": "__SITE_ORIGIN__/",
-        "description": "免费 IPv4 / IPv6 信息查询：归属地、ASN、节点归属、反向解析、DNSBL 黑名单、代理/VPN/Tor 识别。",
+        "description": "免费 IPv4 / IPv6 情报与网络诊断：归属地、ASN、原生/广播判定、DNSBL、代理识别，附连通性、WebRTC、指纹与测速。",
         "isAccessibleForFree": true,
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" },
         "featureList": [
@@ -251,13 +251,13 @@
     <section class="tools" id="tools">
       <h3 class="tools-title">工具箱</h3>
       <div class="tools-tabs" role="tablist" aria-label="工具箱分组">
-        <button type="button" class="tools-tab on" data-tools-tab="net" role="tab" aria-selected="true">网络诊断</button>
-        <button type="button" class="tools-tab" data-tools-tab="privacy" role="tab" aria-selected="false">隐私与指纹</button>
-        <button type="button" class="tools-tab" data-tools-tab="lookup" role="tab" aria-selected="false">查询工具</button>
-        <button type="button" class="tools-tab" data-tools-tab="platform" role="tab" aria-selected="false">平台状态</button>
+        <button type="button" class="tools-tab on" data-tools-tab="net" role="tab" aria-controls="tools-net" aria-selected="true">网络诊断</button>
+        <button type="button" class="tools-tab" data-tools-tab="privacy" role="tab" aria-controls="tools-privacy" aria-selected="false">隐私与指纹</button>
+        <button type="button" class="tools-tab" data-tools-tab="lookup" role="tab" aria-controls="tools-lookup" aria-selected="false">查询工具</button>
+        <button type="button" class="tools-tab" data-tools-tab="platform" role="tab" aria-controls="tools-platform" aria-selected="false">平台状态</button>
       </div>
       <div class="tools-panels">
-      <div class="tools-panel" data-tools-panel="net">
+      <div class="tools-panel" id="tools-net" role="tabpanel" data-tools-panel="net">
 <div class="tools-grid">
         <div class="tool" id="tool-conn">
           <div class="tool-head"><b>连通性检测</b></div>
@@ -314,7 +314,7 @@
       </div>
       </div>
 
-      <div class="tools-panel" data-tools-panel="privacy">
+      <div class="tools-panel" id="tools-privacy" role="tabpanel" data-tools-panel="privacy">
 <div class="tools-grid">
         <div class="tool" id="tool-webrtc">
           <div class="tool-head"><b>WebRTC 泄漏</b><button type="button" class="tool-go" id="tool-webrtc-go">检测</button></div>
@@ -329,7 +329,7 @@
       </div>
       </div>
 
-      <div class="tools-panel" data-tools-panel="lookup">
+      <div class="tools-panel" id="tools-lookup" role="tabpanel" data-tools-panel="lookup">
 <div class="tools-grid">
         <div class="tool" id="tool-domain">
           <div class="tool-head"><b>域名工具箱</b></div>
@@ -370,7 +370,7 @@
       </div>
       </div>
 
-      <div class="tools-panel" data-tools-panel="platform">
+      <div class="tools-panel" id="tools-platform" role="tabpanel" data-tools-panel="platform">
 <div class="tools-grid">
         <div class="tool" id="tool-probe">
           <div class="tool-head"><b>出口探测</b><button type="button" class="tool-go" id="tool-probe-go">运行</button></div>
@@ -430,7 +430,7 @@
       <a class="promo-go" href="https://www.ztsite.com" target="_blank" rel="noopener">访问 ↗</a>
     </div>
 
-    <footer>CFIP · <a href="https://github.com/adream2/CFIP" target="_blank" rel="noopener">GitHub</a> · <span id="footer-note">零外部请求</span> · 不记录查询日志 · 部署于 Cloudflare Workers</footer>
+    <footer>CFIP · <a href="https://github.com/adream2/CFIP" target="_blank" rel="noopener">GitHub</a> · <span id="footer-note">按需联网 · 不上传诊断数据</span> · 不记录查询日志 · 部署于 Cloudflare Workers</footer>
   </div>
   <script src="/assets/app.js" type="module"></script>
 </body>

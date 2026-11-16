@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SELF } from 'cloudflare:test';
 import { parseAsn, runAsnReport } from '../src/tools/asn';
-import { parseIpList, runBulk, BULK_LIMIT } from '../src/tools/bulk';
+import { parseIpList, runBulk, readBodyLimited, BULK_LIMIT } from '../src/tools/bulk';
 import { speedBytesOf, SPEED_MAX_BYTES, SPEED_DEFAULT_BYTES } from '../src/tools/speed';
 
 afterEach(() => {
@@ -120,6 +120,20 @@ describe('bulk：并发查询', () => {
   });
 });
 
+describe('bulk：请求体限长', () => {
+  it('readBodyLimited 正常读取与超限拒绝', async () => {
+    const ok = new Request('https://x.test/', { method: 'POST', body: 'hello' });
+    expect(await readBodyLimited(ok, 64)).toBe('hello');
+    const big = new Request('https://x.test/', { method: 'POST', body: 'a'.repeat(200) });
+    expect(await readBodyLimited(big, 64)).toBeNull();
+  });
+
+  it('POST /api/bulk 超过 8KB 返回 413', async () => {
+    const res = await SELF.fetch('https://example.com/api/bulk', { method: 'POST', body: 'a'.repeat(9000) });
+    expect(res.status).toBe(413);
+  });
+});
+
 describe('speed：字节数夹取', () => {
   it('默认值 / 下限 / 上限', () => {
     expect(speedBytesOf(null)).toBe(SPEED_DEFAULT_BYTES);
@@ -181,6 +195,13 @@ describe('新端点路由（handler 集成）', () => {
     expect(res.status).toBe(200);
     const j = (await res.json()) as { received: number };
     expect(j.received).toBe(4096);
+  });
+
+  it('/api/speed HEAD 只回头部，不返回字节', async () => {
+    const res = await SELF.fetch('https://example.com/api/speed?bytes=4096', { method: 'HEAD' });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Length')).toBe('4096');
+    expect((await res.arrayBuffer()).byteLength).toBe(0);
   });
 
   it('不支持的路径 POST 仍被拒绝', async () => {

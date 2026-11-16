@@ -4,7 +4,6 @@
 import { esc } from './render.js';
 import {
   SITE_GROUPS,
-  median,
   minOf,
   mbps,
   parseUa,
@@ -19,10 +18,6 @@ function bodyOf(sel) {
   const el = $(sel);
   if (el) el.hidden = false;
   return el;
-}
-
-function wait(ms) {
-  return new Promise((r) => setTimeout(r, ms));
 }
 
 /* ===== 连通性检测 ===== */
@@ -157,18 +152,21 @@ export function runWebrtc(el) {
     const host = all.filter((c) => c.type === 'host');
     const relay = all.filter((c) => c.type === 'relay');
     const pageIp = ($('#kpi-ip')?.textContent ?? '').trim();
+    const pageIpOk = /^[0-9a-fA-F:.]+$/.test(pageIp) && pageIp !== '—';
     const publicIps = [...new Set(srflx.map((c) => c.address))];
-    const exposed = publicIps.filter((ip) => ip !== pageIp);
+    const exposed = pageIpOk ? publicIps.filter((ip) => ip !== pageIp) : [];
 
     let verdict;
-    if (publicIps.length === 0 && host.every((c) => c.mdns)) {
+    if (publicIps.length === 0 && host.length > 0 && host.every((c) => c.mdns)) {
       verdict = '<span class="pill ok">未泄漏公网 IP</span> 仅返回 mDNS 混淆地址，浏览器隐私保护生效';
     } else if (publicIps.length === 0) {
       verdict = '<span class="pill warn">未取到公网 IP</span> STUN 可能被拦截，或仅有内网候选';
-    } else if (exposed.length > 0 && pageIp) {
+    } else if (exposed.length > 0 && pageIpOk) {
       verdict = `<span class="pill bad">发现 IP 差异</span> WebRTC 暴露的 ${esc(exposed.join(', '))} 与页面出口 ${esc(pageIp)} 不同，代理可能未覆盖 WebRTC`;
-    } else {
+    } else if (pageIpOk) {
       verdict = `<span class="pill ok">与页面出口一致</span> WebRTC 出口 ${esc(publicIps.join(', '))}`;
+    } else {
+      verdict = `<span class="pill warn">暴露公网 IP</span> ${esc(publicIps.join(', '))}（当前页面无查询结果，未与出口比对）`;
     }
 
     const rows = all.map((c) => `
@@ -199,8 +197,8 @@ function canvasSignature() {
     const ctx = c.getContext('2d');
     if (!ctx) return 'no-2d';
     const g = ctx.createLinearGradient(0, 0, 240, 60);
-    g.addColorStop(0, '#6353e8');
-    g.addColorStop(1, '#ff8fa3');
+    g.addColorStop(0, '#0f766e');
+    g.addColorStop(1, '#2dd4bf');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 240, 60);
     ctx.font = '16px "Arial"';
@@ -377,28 +375,38 @@ export async function runSpeed(el) {
   el.hidden = false;
   el.innerHTML = '<p class="status live" style="text-align:left">测延迟…</p>';
 
-  const lat = await measureLatency(5);
-  const latency = minOf(lat);
-  el.querySelector('.status.live').textContent = '测下载…';
+  const stage = (text) => {
+    const node = el.querySelector('.status.live');
+    if (node) node.textContent = text;
+  };
 
-  let size = 2 * 1024 * 1024;
-  const dl = [];
+  let latency = null;
+  let dl = [];
+  let ul = [];
   let colo = null;
-  for (let i = 0; i < 3; i++) {
-    const r = await measureDownload(size);
-    colo = r.colo ?? colo;
-    dl.push(r.mbps);
-    // 网速很快时自动加码，避免低估
-    if (i === 0 && r.ms < 300) size = 8 * 1024 * 1024;
-  }
+  try {
+    latency = minOf(await measureLatency(5));
+    stage('测下载…');
 
-  el.querySelector('.status.live').textContent = '测上传…';
-  const ul = [];
-  for (let i = 0; i < 2; i++) {
-    try {
-      const r = await measureUpload(1024 * 1024);
-      ul.push(r.mbps);
-    } catch { /* 上传失败不影响结论 */ }
+    let size = 2 * 1024 * 1024;
+    for (let i = 0; i < 3; i++) {
+      const r = await measureDownload(size);
+      colo = r.colo ?? colo;
+      dl.push(r.mbps);
+      // 网速很快时自动加码，避免低估
+      if (i === 0 && r.ms < 300) size = 8 * 1024 * 1024;
+    }
+
+    stage('测上传…');
+    for (let i = 0; i < 2; i++) {
+      try {
+        const r = await measureUpload(1024 * 1024);
+        ul.push(r.mbps);
+      } catch { /* 上传失败不影响结论 */ }
+    }
+  } catch (e) {
+    el.innerHTML = `<p class="status error" style="text-align:left">测速失败：${esc(e.message ?? '网络错误')}</p>`;
+    return;
   }
 
   const down = Math.max(...dl.filter((n) => n != null), 0);
@@ -533,5 +541,3 @@ export function initLabs() {
   }
 }
 
-// 供将来的「一次跑完整套」入口预留
-export { SITE_GROUPS, median, wait };

@@ -29,6 +29,33 @@ export interface BulkReport {
   generatedAt: string;
 }
 
+/** 限长读取请求体：超限返回 null（防止 chunked 请求绕过 content-length 校验） */
+export async function readBodyLimited(request: Request, maxBytes: number): Promise<string | null> {
+  const body = request.body;
+  if (!body) return '';
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    merged.set(c, offset);
+    offset += c.byteLength;
+  }
+  return new TextDecoder().decode(merged);
+}
+
 /** 从任意分隔文本/查询参数中提取 IP：逗号、空白、换行都算分隔符，最多 BULK_LIMIT 个 */
 export function parseIpList(raw: string): { ips: string[]; invalid: string[] } {
   const tokens = String(raw ?? '')

@@ -1,6 +1,6 @@
 /**
  * CFIP 统计与广告插件：按 site-config.js（或 /api/site-config 的环境变量覆盖）
- * 动态注入第三方脚本。全部留空时零外部请求，一个字节都不加载。
+ * 动态注入第三方脚本。全部留空时不加载任何第三方脚本。
  */
 
 import { siteConfig } from './site-config.js';
@@ -136,10 +136,10 @@ function initAdsense(ads) {
   }
 }
 
-/** 启用任何插件后，页脚「零外部请求」不再成立，改为更准确的隐私声明 */
+/** 启用任何插件后，页脚从「按需联网」改为更明确的统计/广告声明 */
 function markFooter(active) {
   const note = document.getElementById('footer-note');
-  if (note) note.textContent = active ? '统计/广告已启用' : '零外部请求';
+  if (note) note.textContent = active ? '统计/广告已启用' : '按需联网 · 不上传诊断数据';
 }
 
 export async function initSitePlugins() {

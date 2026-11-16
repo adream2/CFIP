@@ -34,8 +34,8 @@ import { runStatusReport } from './tools/status';
 import { runPing, PING_TYPES } from './tools/ping';
 import type { PingType } from './tools/ping';
 import { runAsnReport, parseAsn } from './tools/asn';
-import { runBulk, parseIpList, BULK_LIMIT } from './tools/bulk';
-import { speedBytesOf, downloadResponse, consumeUpload } from './tools/speed';
+import { runBulk, parseIpList, readBodyLimited, BULK_LIMIT } from './tools/bulk';
+import { speedBytesOf, downloadResponse, speedHeaders, consumeUpload } from './tools/speed';
 
 const CLASS_LABELS: Record<IpClass, string> = {
   public: '公网',
@@ -285,7 +285,12 @@ export default {
         const len = Number(request.headers.get('content-length') ?? '0');
         if (len > 8192) return errorJson(`IP 列表过大（上限 8KB / ${BULK_LIMIT} 个 IP）`, 413);
       }
-      const raw = isPost ? await request.text() : (url.searchParams.get('ips') ?? '');
+      let raw = url.searchParams.get('ips') ?? '';
+      if (isPost) {
+        const body = await readBodyLimited(request, 8192);
+        if (body === null) return errorJson(`IP 列表过大（上限 8KB / ${BULK_LIMIT} 个 IP）`, 413);
+        raw = body;
+      }
       if (!raw.trim()) return errorJson(`缺少 ips 参数（逗号 / 空格 / 换行分隔，最多 ${BULK_LIMIT} 个）`, 400);
       const { ips, invalid } = parseIpList(raw);
       if (ips.length === 0) {
@@ -296,6 +301,8 @@ export default {
     }
     if (url.pathname === '/api/speed') {
       if (isPost) {
+        const declared = Number(request.headers.get('content-length') ?? '0');
+        if (declared > 32 * 1024 * 1024) return errorJson('上传体过大（上限 32MB）', 413);
         const { received, ms } = await consumeUpload(request);
         return new Response(JSON.stringify({ received, ms }), {
           headers: {
@@ -307,7 +314,10 @@ export default {
         });
       }
       const bytes = speedBytesOf(url.searchParams.get('bytes'));
-      return downloadResponse(bytes, (request.cf as IncomingRequestCfProperties | undefined)?.colo ?? null);
+      const colo = (request.cf as IncomingRequestCfProperties | undefined)?.colo ?? null;
+      // HEAD 只回头部，不分配测速字节
+      if (request.method === 'HEAD') return new Response(null, { headers: speedHeaders(bytes, colo) });
+      return downloadResponse(bytes, colo);
     }
     if (url.pathname === '/api/ping') {
       const target = (url.searchParams.get('target') ?? '').trim();

@@ -37,7 +37,7 @@ export function yn(v) {
   return v === null || v === undefined ? dash : badge(v ? '是' : '否', v ? 'bad' : 'ok');
 }
 
-/** 等距圆柱投影内联 SVG 地图（经纬网格 + 定位点），零外部请求 */
+/** 等距圆柱投影内联 SVG 地图（经纬网格 + 定位点），不依赖地图瓦片 */
 export function mapSvg(lat, lng) {
   if (lat == null || lng == null) return '';
   const W = 360, H = 180;

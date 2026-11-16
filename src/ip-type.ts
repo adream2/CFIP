@@ -39,9 +39,6 @@ export function deriveIpType(info: IpInfo): IpTypeVerdict | null {
   // 机房属性：与原生/广播无关，但对「这个 IP 能不能当住宅用」很关键
   const cloudRdns = info.node.rdns.find((h) => CLOUD_RDNS.test(h));
   if (cloudRdns) reasons.push(`rDNS 指向云 / IDC：${cloudRdns}`);
-  if (cloudRdns && !info.node.hosting) {
-    reasons.push('rDNS 关键词与多源 hosting 判定不一致，建议以 hosting 字段为准');
-  }
 
   if (!geo) {
     return { value: 'unknown', confidence: 'low', source: 'static', reasons: [...reasons, '缺少地理归属国家，无法比对注册地'] };

@@ -18,20 +18,22 @@ export function speedBytesOf(raw: string | null | undefined): number {
   return Math.min(Math.max(Math.floor(n), SPEED_MIN_BYTES), SPEED_MAX_BYTES);
 }
 
+/** 测速响应头：强制不缓存，并暴露字节数 / 边缘节点给前端 */
+export function speedHeaders(bytes: number, colo: string | null): Record<string, string> {
+  return {
+    'Content-Type': 'application/octet-stream',
+    'Content-Length': String(bytes),
+    'Cache-Control': 'no-store, no-transform',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Expose-Headers': 'X-Cfip-Bytes, X-Cfip-Colo',
+    'X-Cfip-Bytes': String(bytes),
+    ...(colo ? { 'X-Cfip-Colo': colo } : {}),
+  };
+}
+
 /** 下载响应：零填充字节 + 强制不缓存 */
 export function downloadResponse(bytes: number, colo: string | null): Response {
-  const body = new Uint8Array(bytes);
-  return new Response(body, {
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': String(bytes),
-      'Cache-Control': 'no-store, no-transform',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Expose-Headers': 'X-Cfip-Bytes, X-Cfip-Colo',
-      'X-Cfip-Bytes': String(bytes),
-      ...(colo ? { 'X-Cfip-Colo': colo } : {}),
-    },
-  });
+  return new Response(new Uint8Array(bytes), { headers: speedHeaders(bytes, colo) });
 }
 
 export interface UploadResult {

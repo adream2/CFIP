@@ -394,10 +394,12 @@ a { color: var(--accent); }
 /* ===== 面板 ===== */
 .grid2 {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  align-items: start;
 }
+
+/* 网格项必须允许收缩，否则详情里的 pre / 长字符串会把整列撑出横向滚动 */
+.grid2 > * { min-width: 0; }
 
 .panel {
   padding: 20px 22px 22px;
@@ -459,7 +461,7 @@ a { color: var(--accent); }
 
 .kv > div:first-child { padding-top: 0; border-top: none; }
 .kv dt { color: var(--text2); }
-.kv dd { margin: 0; font-family: var(--mono); word-break: break-all; }
+.kv dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; }
 
 /* ===== 徽章 / 圆点 ===== */
 .pill,
@@ -530,6 +532,7 @@ a { color: var(--accent); }
 
 .meta-table tbody tr:last-child td { border-bottom: none; }
 .meta-table td.mono, .mono { font-family: var(--mono); }
+.meta-table td { overflow-wrap: anywhere; }
 
 .reason { color: var(--text2); font-size: 12px; }
 
@@ -592,9 +595,7 @@ details[open] > summary::after { content: "−"; color: var(--accent); }
 .compare[open] summary { margin-bottom: 10px; }
 .compare .meta-table { font-size: 12px; }
 
-/* —— 地理位置面板：左大，跨两行 —— */
-.panel-loc { grid-row: span 2; }
-
+/* —— 地理位置面板：整宽度，内部左字段右地图 —— */
 .panel-loc #panel-location {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
@@ -805,9 +806,16 @@ details[open] > summary::after { content: "−"; color: var(--accent); }
 
 .detail-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
+  min-width: 0;
 }
+
+.detail-body > * { min-width: 0; }
+
+.detail-body .meta-table { table-layout: fixed; }
+.detail-body .meta-table td { overflow-wrap: anywhere; }
 
 .detail-body > div > h3,
 .detail-body > h3 {
@@ -822,6 +830,7 @@ details[open] > summary::after { content: "−"; color: var(--accent); }
 
 .detail-json pre {
   margin: 0;
+  max-width: 100%;
   padding: 14px 16px;
   border-radius: var(--r-md);
   background: var(--surface-2);
@@ -1104,7 +1113,6 @@ footer a:hover { color: var(--accent); }
 @media (max-width: 960px) {
   .kpis { grid-template-columns: 1fr 1fr; }
   .grid2 { grid-template-columns: 1fr; }
-  .panel-loc { grid-row: auto; }
   .panel-loc #panel-location { grid-template-columns: 1fr; }
   .panel-loc #panel-location > .map { grid-column: 1; grid-row: auto; margin-top: 14px; }
 }

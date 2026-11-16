@@ -41,7 +41,6 @@ describe('dns：多解析器对比', () => {
     vi.stubGlobal('fetch', mockByResolver({
       'cloudflare-dns.com': { answers: [{ type: 1, data: '1.2.3.4' }] },
       'dns.google': { answers: [{ type: 1, data: '1.2.3.4' }] },
-      'dns.quad9.net': { answers: [{ type: 1, data: '1.2.3.4' }, { type: 1, data: '1.2.3.4' }] },
       'dns.adguard-dns.com': { answers: [{ type: 1, data: '1.2.3.4' }] },
       'dns.alidns.com': { answers: [{ type: 1, data: '1.2.3.4' }] },
       'doh.pub': { answers: [{ type: 1, data: '1.2.3.4' }] },
@@ -57,7 +56,6 @@ describe('dns：多解析器对比', () => {
     vi.stubGlobal('fetch', mockByResolver({
       'cloudflare-dns.com': { answers: [{ type: 1, data: '93.184.216.34' }] },
       'dns.google': { answers: [{ type: 1, data: '93.184.216.34' }] },
-      'dns.quad9.net': { answers: [{ type: 1, data: '93.184.216.34' }] },
       'dns.adguard-dns.com': { answers: [{ type: 1, data: '93.184.216.34' }] },
       'dns.alidns.com': { answers: [{ type: 1, data: '10.10.10.10' }] },
       'doh.pub': { answers: [{ type: 1, data: '10.10.10.10' }] },

@@ -296,7 +296,7 @@ export default {
       if (ips.length === 0) {
         return errorJson(`未解析到合法 IP${invalid.length ? `（无效项：${invalid.slice(0, 3).join(', ')}）` : ''}`, 400);
       }
-      const { data, hit } = await withCache(`bulk:${ips.join(',')}`, 600, () => runBulk(fetch, ips));
+      const { data, hit } = await withCache(`bulk:${ips.join(',')}`, 600, () => runBulk(fetch, ips, { enableIpApi: cfg.enableIpApi }));
       return jsonTool({ ...data, invalid }, hit, t0);
     }
     if (url.pathname === '/api/speed') {

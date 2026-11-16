@@ -27,7 +27,7 @@
 | `/ip[?ip=]` | 纯文本 IP 地址（脚本友好） |
 | `/api/probe` | 出口探测：各 AI/云服务视角的 Worker 出口 IP 与可达性 |
 | `/api/domain?domain=` | 域名工具箱：DoH 解析 + CDN 识别 + RDAP WHOIS |
-| `/api/dns?domain=&type=` | 多解析器 DNS 对比：6 个公共 DoH 并发查询 + 一致性判定（污染/区域调度） |
+| `/api/dns?domain=&type=` | 多解析器 DNS 对比：5 个公共 DoH 并发查询 + 一致性判定（污染/区域调度） |
 | `/api/ping?target=&type=` | 全球 Ping / MTR（Globalping，ping/http/dns/**mtr**，匿名 250 次/h） |
 | `/api/asn?asn=` | ASN 查询：AS 名称、宣告前缀、上下游邻居（RIPEstat） |
 | `/api/bulk?ips=` | 批量 IP 地理查询（GET 逗号分隔 / POST 文本体，最多 20 个） |
@@ -55,11 +55,11 @@ JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connect
 | --- | --- | --- | --- | --- |
 | `request.cf` | 连接层信息（HTTP/TLS/RTT/colo，仅自身查询） | 否 | 无 | 字段级防御读取 |
 | ipwho.is（主） | 地理全套、ASN/ISP/ORG、代理识别、托管识别 | 否 | 1000/天 | 降级 ip-api |
-| ip-api.com（二级） | 地理、ISP/ORG/AS、移动/托管/代理、rDNS 兜底 | 否 | 45/分钟 | `ENABLE_IPAPI=false` 可关 |
+| ip-api.com（二级） | 地理、ISP/ORG/AS、移动/托管/代理、rDNS 兜底；`/api/bulk` 批量兜底（100 个/次） | 否 | 45/分钟 · 批量 15/分钟 | `ENABLE_IPAPI=false` 可关 |
 | ip2region 离线库 | **国内中文省/市/运营商**（xdb 随 Workers Assets 部署，仅 IPv4） | 否 | 无 | 缺数据时 warning，中文归属退化为在线源 |
 | RDAP（rdap.org 引导） | 网段 CIDR、RIR、注册国家、注册时间、滥用投诉邮箱、用途类型 | 否 | 无 | 失败降级 RIPEstat whois，仍失败才留空 |
 | Cloudflare DoH | rDNS 反解、5 个 DNSBL 黑名单（含命中原因 TXT）、域名解析 | 否 | 无 | rdnsError / 空记录 |
-| 公共 DoH ×6 | `/api/dns` 多解析器对比：Cloudflare / Google / Quad9 / AdGuard / AliDNS / DNSPod | 否 | 无 | 单源失败不影响整体 |
+| 公共 DoH ×5 | `/api/dns` 多解析器对比：Cloudflare / Google / AdGuard / AliDNS / DNSPod | 否 | 无 | 单源失败不影响整体 |
 | RIPEstat | AS 名称/宣告状态、宣告前缀、上下游邻居（`/api/asn`） | 否 | 无 | warnings 记录失败项 |
 | 公共 STUN | WebRTC 泄漏检测（浏览器侧直连 stun.cloudflare.com / stun.l.google.com） | 否 | 无 | 仅 mDNS / 内网候选 |
 | bgp.tools | ASN 名称/描述/注册国家（已知 ASN 时触发） | 否 | 无 | 忽略 |
@@ -68,7 +68,7 @@ JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connect
 | ipinfo.io（可选） | 加强地理/代理识别 | `IPINFO_TOKEN` | 5 万/月 | 无 secret 不注册 |
 | AbuseIPDB（可选） | 滥用评分/举报数 | `ABUSEIPDB_KEY` | 1000/天 | 无 secret 不注册 |
 
-> **关于共享出口限流**：Worker 出站请求对上游显示的是 Cloudflare 共享出口 IP，ipwho.is / ip-api 的配额可能被多方共用。缓解：6h 缓存 + 多源降级链 + 连续失败熔断（60s 跳过窗口）+ 无限制骨干源（RDAP/DoH/bgp.tools）。
+> **关于共享出口限流**：Worker 出站请求对上游显示的是 Cloudflare 共享出口 IP，ipwho.is / ip-api 的配额可能被多方共用。缓解：6h 缓存 + 多源降级链 + 连续失败熔断（60s 跳过窗口）+ 无限制骨干源（RDAP / DoH）；bgp.tools 从 CF 出口可能返回 403，属已知限制。
 >
 > **ip-api.com 免费档禁止商业用途**，本项目仅将其作为二级降级源并保留 attribution；商业用途请购买其 Pro 或设 `ENABLE_IPAPI=false`。
 
@@ -97,7 +97,7 @@ GH_TOKEN=<有 Contents 写权限的 PAT> npm run xdb:sync
 npx wrangler dev
 curl "http://localhost:8787/api?ip=114.114.114.114"
 curl "http://localhost:8787/api/probe"
-npm test          # 211 个测试（ip/ip-type/calc/diag/merge/xdb/render/inject/seo/tools/dns/asn-bulk/adapters/handler 集成）
+npm test          # 213 个测试（ip/ip-type/calc/diag/merge/xdb/render/inject/seo/tools/dns/asn-bulk/adapters/handler 集成）
 ```
 
 ### 4. 部署

@@ -96,7 +96,7 @@ export function llmsTxt(origin: string): string {
 - [纯文本 IP](${origin}/ip)：GET /ip，脚本友好，留空返回请求方自身 IP
 - [出口探测](${origin}/api/probe)：各 AI / 云服务视角下的出口 IP 与可达性
 - [域名工具箱](${origin}/api/domain?domain=github.com)：DoH 解析 + CDN 识别 + RDAP WHOIS
-- [DNS 对比](${origin}/api/dns?domain=github.com&type=A)：6 个公共 DoH 解析器并发查询与一致性判定
+- [DNS 对比](${origin}/api/dns?domain=github.com&type=A)：5 个公共 DoH 解析器并发查询与一致性判定
 - [全球 Ping / MTR](${origin}/api/ping?target=1.1.1.1&type=ping)：Globalping 分布式探针测量
   （type 支持 ping / http / dns / mtr）
 - [服务状态](${origin}/api/status)：Cloudflare / GitHub / OpenAI / Anthropic 状态聚合

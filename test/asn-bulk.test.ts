@@ -118,6 +118,34 @@ describe('bulk：并发查询', () => {
     expect(r.rows[0].ok).toBe(false);
     expect(r.rows[0].error).toMatch(/429/);
   });
+
+  it('ipwho.is 失败时用 ip-api 批量兜底（非公网不参与）', async () => {
+    vi.stubGlobal('fetch', mockFetch({
+      'ipwho.is': { status: 429 },
+      'ip-api.com/batch': {
+        body: [
+          { status: 'success', query: '1.1.1.1', country: '澳大利亚', countryCode: 'AU', regionName: 'Queensland', city: 'Brisbane', timezone: 'Australia/Brisbane', as: 'AS13335 Cloudflare, Inc.', org: 'Cloudflare' },
+          { status: 'success', query: '8.8.8.8', country: '美国', countryCode: 'US', as: 'AS15169 Google LLC' },
+        ],
+      },
+    }));
+    const r = await runBulk(fetch, ['1.1.1.1', '192.168.1.1', '8.8.8.8'], { enableIpApi: true });
+    expect(r.rows[0]).toMatchObject({ ok: true, countryCode: 'AU', asn: 13335, city: 'Brisbane' });
+    expect(r.rows[1].ok).toBe(false);
+    expect(r.rows[1].error).toMatch(/非公网/);
+    expect(r.rows[2]).toMatchObject({ ok: true, countryCode: 'US', asn: 15169 });
+  });
+
+  it('enableIpApi=false 时不发兜底请求', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      calls.push(url);
+      return new Response('', { status: 429 });
+    }) as unknown as typeof fetch);
+    await runBulk(fetch, ['1.1.1.1'], { enableIpApi: false });
+    expect(calls.some((u) => u.includes('ip-api.com'))).toBe(false);
+  });
 });
 
 describe('bulk：请求体限长', () => {

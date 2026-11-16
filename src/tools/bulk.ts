@@ -5,10 +5,16 @@
  */
 
 import { parseIp, classifyIp } from '../ip';
+import { parseAsnField } from '../adapters/ipapi';
 
 export const BULK_LIMIT = 20;
 const CONCURRENCY = 5;
 const TIMEOUT_MS = 6000;
+
+/** ip-api.com 批量接口：最多 100 个 IP / 次，免费档 15 次/分钟（HTTP only） */
+const IPAPI_BATCH_URL =
+  'http://ip-api.com/batch?fields=status,message,query,country,countryCode,regionName,city,timezone,as,org,isp';
+
 
 export interface BulkRow {
   ip: string;
@@ -78,6 +84,20 @@ export function parseIpList(raw: string): { ips: string[]; invalid: string[] } {
   return { ips, invalid };
 }
 
+interface IpApiBatchItem {
+  status?: string;
+  message?: string;
+  query?: string;
+  country?: string;
+  countryCode?: string;
+  regionName?: string;
+  city?: string;
+  timezone?: string;
+  as?: string;
+  org?: string;
+  isp?: string;
+}
+
 interface IpwhoisRow {
   success?: boolean;
   message?: string;
@@ -131,10 +151,47 @@ async function lookupOne(fetchFn: typeof fetch, ip: string, signal?: AbortSignal
   }
 }
 
+/** 首轮失败（多为 ipwho.is 共享出口 429）的公网 IP，走 ip-api 批量接口补一次 */
+async function fillViaIpApi(fetchFn: typeof fetch, rows: BulkRow[], signal?: AbortSignal): Promise<void> {
+  const targets = rows.filter((r) => !r.ok && r.error !== '非公网地址，已跳过');
+  if (!targets.length) return;
+
+  const res = await fetchFn(IPAPI_BATCH_URL, {
+    method: 'POST',
+    signal: signal ?? AbortSignal.timeout(TIMEOUT_MS),
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(targets.map((r) => r.ip)),
+  });
+  if (!res.ok) throw new Error(`ip-api batch HTTP ${res.status}`);
+  const list = (await res.json()) as IpApiBatchItem[];
+  if (!Array.isArray(list)) return;
+
+  const byIp = new Map(list.map((item) => [item.query ?? '', item]));
+  for (const row of targets) {
+    const item = byIp.get(row.ip);
+    if (!item || item.status !== 'success') continue;
+    row.ok = true;
+    row.country = item.country ?? null;
+    row.countryCode = item.countryCode ?? null;
+    row.region = item.regionName ?? null;
+    row.city = item.city ?? null;
+    row.asn = parseAsnField(item.as);
+    row.org = item.org ?? item.isp ?? null;
+    row.timezone = item.timezone ?? null;
+    row.error = null;
+  }
+}
+
+export interface BulkOptions {
+  /** ip-api 免费档禁商用，可由 ENABLE_IPAPI 关闭 */
+  enableIpApi?: boolean;
+}
+
 /** 并发受限执行，保持输出顺序与输入一致 */
 export async function runBulk(
   fetchFn: typeof fetch,
   ips: string[],
+  opts: BulkOptions = {},
   signal?: AbortSignal,
 ): Promise<BulkReport> {
   const rows: BulkRow[] = new Array(ips.length);
@@ -146,5 +203,14 @@ export async function runBulk(
     }
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ips.length) }, worker));
+
+  if (opts.enableIpApi !== false) {
+    try {
+      await fillViaIpApi(fetchFn, rows, signal);
+    } catch {
+      // 兜底失败时保留首轮结果，不让整体请求失败
+    }
+  }
+
   return { rows, invalid: [], generatedAt: new Date().toISOString() };
 }

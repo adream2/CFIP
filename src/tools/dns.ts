@@ -1,5 +1,5 @@
 /**
- * 多解析器 DNS 对比（/api/dns）：并发向 6 个公共 DoH 解析器查询同一域名，
+ * 多解析器 DNS 对比（/api/dns）：并发向 5 个公共 DoH 解析器查询同一域名，
  * 对比各解析器的返回值，用于发现 DNS 污染 / 劫持 / 分区域解析。
  *
  * 注意：CDN 的 GeoDNS 就近调度本身就会让不同地区解析器返回不同 IP，
@@ -30,7 +30,8 @@ interface ResolverDef {
   endpoint: (name: string, type: DnsType) => string;
 }
 
-/** RFC 8484 JSON 接口；四家海外 + 两家国内，覆盖最常见的区域性差异对比 */
+/** RFC 8484 JSON 接口；三家海外 + 两家国内，覆盖最常见的区域性差异对比。
+ *  注意：Workers 出站只能访问标准端口，Quad9 的 JSON 接口在 5053 端口，故不收录。 */
 export const DNS_RESOLVERS: ResolverDef[] = [
   {
     id: 'cloudflare',
@@ -43,12 +44,6 @@ export const DNS_RESOLVERS: ResolverDef[] = [
     name: 'Google',
     region: '海外',
     endpoint: (n, t) => `https://dns.google/resolve?name=${encodeURIComponent(n)}&type=${t}`,
-  },
-  {
-    id: 'quad9',
-    name: 'Quad9',
-    region: '海外',
-    endpoint: (n, t) => `https://dns.quad9.net:5053/dns-query?ct=application/dns-json&name=${encodeURIComponent(n)}&type=${t}`,
   },
   {
     id: 'adguard',

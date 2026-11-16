@@ -923,6 +923,58 @@ footer a:hover { color: var(--accent); }
 .ad-slot[hidden] { display: none; }
 .ad-slot ins { display: block; }
 
+/* ===== 导出条 ===== */
+.export-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.export-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--rim);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--clay-sm);
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.18s var(--ease), color 0.18s var(--ease);
+}
+
+.export-btn:hover { transform: translateY(-1px); color: var(--accent); }
+.export-btn:active { transform: translateY(1px); }
+
+.export-hint { color: var(--text2); font-size: 11.5px; }
+
+/* ===== 判定依据（IP 类型等） ===== */
+.reasons { margin-top: 6px; font-size: 12px; color: var(--text2); font-family: var(--sans); }
+.reasons summary { cursor: pointer; color: var(--accent); }
+.reasons ul { margin: 6px 0 0; padding-left: 16px; line-height: 1.75; }
+.reasons li { font-family: var(--sans); }
+
+/* ===== DNS 对比：分歧行高亮 ===== */
+.meta-table tr.divergent td { background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.meta-table td .reason { font-family: var(--sans); font-size: 11.5px; color: var(--text2); }
+
+/* ===== MTR 逐跳 ===== */
+.hops { display: grid; gap: 3px; font-size: 12px; }
+.hop {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 0.9fr) minmax(0, 1fr) 68px;
+  gap: 8px;
+  align-items: baseline;
+  font-family: var(--mono);
+}
+.hop-n { color: var(--text2); text-align: right; }
+.hop-ip { color: var(--text); }
+.hop-host { color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--sans); }
+.hop-rtt { color: var(--text2); text-align: right; }
+
 /* ===== 锚点补偿 ===== */
 #tools, #faq { scroll-margin-top: 84px; }
 

@@ -109,6 +109,7 @@ export const rdapAdapter: Adapter = {
         usageType: j.type ?? null,
         rdapServer: res.url || url,
         asName: j.name ?? null,
+        registryCountry: j.country ? j.country.toUpperCase() : null,
       },
     };
     return { data };

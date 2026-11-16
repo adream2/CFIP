@@ -2,6 +2,7 @@
 
 import { esc, dash, flagEmoji, row, rows, badge, judgement, yn, mapSvg } from './render.js';
 import { initSitePlugins } from './site-plugins.js';
+import { calcIp } from './calc.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -10,6 +11,9 @@ const input = $('#ip-input');
 const btn = $('#btn-query');
 const statusEl = $('#status');
 const resultEl = $('#result');
+
+/** 最近一次查询结果：复制 / 导出用 */
+let lastInfo = null;
 
 function setStatus(text, isError = false) {
   if (!text) {
@@ -48,6 +52,7 @@ async function lookup(ip) {
 }
 
 function renderAll(info) {
+  lastInfo = info;
   resultEl.hidden = false;
   renderKpis(info);
   renderLocation(info);
@@ -122,18 +127,33 @@ function renderNetwork(info) {
       <div><dt>AS 名称</dt><dd>${esc(N.asName ?? '—')}</dd></div>
       <div><dt>网段</dt><dd>${N.range.cidr ? `${esc(N.range.cidr)}${N.range.count ? ` (${N.range.count.toLocaleString()} 地址)` : ''}` : (N.range.start && N.range.end ? `${esc(N.range.start)} – ${esc(N.range.end)}` : '—')}</dd></div>
       <div><dt>注册局</dt><dd>${esc(N.rir ?? '—')}${N.allocationDate ? ` · ${esc(N.allocationDate.slice(0, 10))}` : ''}</dd></div>
+      <div><dt>注册国家</dt><dd>${esc(N.registryCountry ?? '—')}</dd></div>
       <div><dt>滥用邮箱</dt><dd>${esc(N.abuseEmail ?? '—')}</dd></div>
       <div><dt>用途</dt><dd>${esc(N.usageType ?? '—')}</dd></div>
     </dl>`;
 }
 
 /* —— 面板：节点归属 —— */
+const IP_TYPE_LABELS = { native: '原生 IP', broadcast: '广播 IP', unknown: '无法判定' };
+const CONF_LABELS = { high: '高', medium: '中', low: '低' };
+
+/** IP 类型徽章 + 可选折叠的判定依据 */
+function ipTypeHtml(t) {
+  if (!t) return '—';
+  const tone = t.value === 'broadcast' ? 'bad' : t.value === 'native' ? 'ok' : '';
+  const detail = t.reasons?.length
+    ? `<details class="reasons"><summary>判定依据（${t.reasons.length}）</summary><ul>${t.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></details>`
+    : '';
+  return `${badge(IP_TYPE_LABELS[t.value] ?? t.value, tone)}${badge(`置信度 ${CONF_LABELS[t.confidence] ?? t.confidence}`)}${detail}`;
+}
+
 function renderNode(info) {
   const nd = info.node;
   const typeLabels = { cloud: '云厂商', cdn: 'CDN', hosting: '托管/IDC', isp: '运营商', education: '教育网', government: '政府', unknown: '未知' };
   $('#panel-node').innerHTML = `
     <dl class="kv">
       <div><dt>类型</dt><dd>${nd.provider ? `${esc(nd.provider)}${nd.providerType ? ` · ${esc(typeLabels[nd.providerType] ?? nd.providerType)}` : ''}` : '—'}</dd></div>
+      <div><dt>IP 类型</dt><dd>${ipTypeHtml(nd.ipType)}</dd></div>
       <div><dt>托管</dt><dd>${judgement(nd.hosting)}</dd></div>
       <div><dt>Anycast</dt><dd>${judgement(nd.anycast)}</dd></div>
       <div><dt>移动网络</dt><dd>${judgement(nd.isMobile)}</dd></div>
@@ -290,12 +310,162 @@ function renderTool(name, data, el) {
         if (data.type === 'ping') out = p.rttMs != null ? `${p.rttMs} ms（${p.minMs}–${p.maxMs}）` : (p.error ?? '—');
         else if (data.type === 'http') out = p.statusCode != null ? `HTTP ${p.statusCode} · ${p.totalMs != null ? `${p.totalMs} ms` : ''}` : (p.error ?? '—');
         else if (data.type === 'dns') out = p.records.length ? p.records.map(esc).join(' · ') : (p.error ?? '—');
+        else if (data.type === 'mtr') out = p.hops?.length ? hopsHtml(p.hops) : (p.error ?? '—');
         return `<tr><td>${esc([p.city, p.country].filter(Boolean).join(', ') || '—')}${p.asn != null ? ` <span class="mono">AS${p.asn}</span>` : ''}</td><td class="mono">${out}</td></tr>`;
       }).join('')}
     </tbody></table>`;
     return;
   }
+  if (name === 'dns') {
+    const rowsHtml = data.resolvers.map((r) => `
+      <tr class="${r.divergent ? 'divergent' : ''}">
+        <td>${esc(r.name)} <span class="reason">${esc(r.region)}</span></td>
+        <td class="mono">${r.ok ? (r.answers.length ? r.answers.map(esc).join('<br>') : '（空记录）') : `<span class="reason">${esc(r.error ?? '查询失败')}</span>`}</td>
+        <td class="mono">${r.ms} ms</td>
+      </tr>`).join('');
+    const verdict = data.consistent
+      ? '<span class="pill ok">结果一致</span>'
+      : `<span class="pill warn">存在分歧</span> <span class="reason">${esc(data.divergentResolvers.join(', '))}</span>`;
+    el.innerHTML = `
+      <p class="status" style="text-align:left;margin:0 0 8px">${verdict}${data.note ? ` · ${esc(data.note)}` : ''}</p>
+      <table class="meta-table">
+        <thead><tr><th>解析器</th><th>${esc(data.type)} 记录</th><th>耗时</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`;
+    return;
+  }
   el.innerHTML = `<pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
+}
+
+/** MTR 逐跳列表 */
+function hopsHtml(hops) {
+  const items = hops.map((h) => `
+    <div class="hop">
+      <span class="hop-n mono">${h.hop}</span>
+      <span class="hop-ip mono">${esc(h.ip ?? '*')}</span>
+      <span class="hop-host">${esc(h.hostname ?? '')}</span>
+      <span class="hop-rtt mono">${h.rttMs != null ? `${h.rttMs} ms` : '—'}</span>
+    </div>`).join('');
+  return `<div class="hops">${items}</div>`;
+}
+
+/* —— IP 计算器（纯本地计算，零请求） —— */
+function renderCalc(raw) {
+  const el = $('#tool-calc-body');
+  el.hidden = false;
+  const r = calcIp(raw);
+  if (!r.ok) {
+    el.innerHTML = `<p class="status error" style="text-align:left">${esc(r.error)}</p>`;
+    return;
+  }
+  const dl = (items) => `<dl class="kv">${items
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v, mono = true]) => `<div><dt>${esc(k)}</dt><dd class="${mono ? 'mono' : ''}">${esc(String(v))}</dd></div>`)
+    .join('')}</dl>`;
+
+  if (r.mode === 'range') {
+    el.innerHTML = dl([
+      ['范围', `${r.start} – ${r.end}`],
+      ['地址数', r.totalAddresses.toLocaleString()],
+      ['CIDR 集合', r.cidrs.join('\n')],
+    ]);
+    return;
+  }
+  if (r.version === 4) {
+    el.innerHTML = dl([
+      ['网络地址', r.cidr],
+      ['广播地址', r.broadcast],
+      ['子网掩码', r.netmask],
+      ['通配符', r.wildcard],
+      ['可用主机', r.usableHosts.toLocaleString()],
+      ['主机范围', `${r.firstHost} – ${r.lastHost}`],
+      ['地址总数', r.totalAddresses.toLocaleString()],
+      ['整数', r.ipInt],
+      ['十六进制', r.ipHex],
+      ['二进制', r.ipBinary],
+      ['地址类型', r.kind, false],
+    ]);
+    return;
+  }
+  el.innerHTML = dl([
+    ['规范化', r.ip],
+    ['网络', r.cidr],
+    ['展开形式', r.expanded],
+    ['末地址', r.last],
+    ['地址总数', BigInt(r.totalAddresses).toLocaleString()],
+    ['地址类型', r.kind, false],
+  ]);
+}
+
+/* —— 导出：复制 JSON / 复制 Markdown 报告 / 下载 JSON（全部本地生成） —— */
+function markdownReport(info) {
+  const L = info.location;
+  const N = info.network;
+  const nd = info.node;
+  const r = info.reputation;
+  const lines = [];
+  const kv = (k, v) => { if (v !== null && v !== undefined && v !== '' && v !== '—') lines.push(`- ${k}：${v}`); };
+  const flagCC = L.countryCode ? ` (${L.countryCode})` : '';
+
+  lines.push(`# CFIP 诊断报告 · ${info.ip}`, '');
+  kv('查询时间', info.meta.generatedAt);
+  kv('IP 版本', `IPv${info.version}`);
+  if (nd.ipType) kv('IP 类型', `${IP_TYPE_LABELS[nd.ipType.value]}（置信度 ${CONF_LABELS[nd.ipType.confidence]}）`);
+
+  lines.push('', '## 归属地', '');
+  kv('国家', `${L.country ?? '—'}${flagCC}`);
+  kv('省 / 市', [L.region, L.city, L.district].filter(Boolean).join(' · '));
+  kv('邮编', L.postalCode);
+  kv('坐标', L.latitude != null && L.longitude != null ? `${L.latitude}, ${L.longitude}` : null);
+  kv('时区', L.timezone);
+
+  lines.push('', '## 网络与注册', '');
+  kv('ASN', N.asn != null ? `AS${N.asn}${N.asnLabel ? ` ${N.asnLabel}` : ''}` : null);
+  kv('ISP / 组织', N.isp ?? N.org);
+  kv('网段', N.range.cidr ?? (N.range.start ? `${N.range.start} – ${N.range.end}` : null));
+  kv('RIR / 注册地', [N.rir, N.registryCountry].filter(Boolean).join(' · '));
+  kv('滥用邮箱', N.abuseEmail);
+
+  lines.push('', '## 节点与信誉', '');
+  kv('节点归属', nd.provider ? `${nd.provider}${nd.providerType ? `（${nd.providerType}）` : ''}` : null);
+  kv('托管 / Anycast', `托管 ${nd.hosting ? (nd.hosting.value ? '是' : '否') : '未知'} · Anycast ${nd.anycast ? (nd.anycast.value ? '是' : '否') : '未知'}`);
+  kv('rDNS', nd.rdns.join(', '));
+  kv('DNSBL', r.dnsbl.length ? `${r.dnsblListedCount}/${r.dnsbl.length} 个列表列名` : null);
+  kv('代理 / VPN / Tor', [r.proxy.isProxy, r.proxy.isVpn, r.proxy.isTor].map((v) => (v == null ? '未知' : v ? '是' : '否')).join(' / '));
+
+  if (info.comparison?.locations?.length > 1) {
+    lines.push('', '## 多源位置对比', '', '| 来源 | 国家 | 省/州 | 城市 |', '| --- | --- | --- | --- |');
+    for (const l of info.comparison.locations) {
+      lines.push(`| ${l.id} | ${l.country ?? '—'} | ${l.region ?? '—'} | ${l.city ?? '—'} |`);
+    }
+  }
+
+  lines.push('', '## 数据源', '', '| 数据源 | 状态 | 耗时 |', '| --- | --- | --- |');
+  for (const s of info.meta.sources) {
+    lines.push(`| ${s.id} | ${s.ok ? '成功' : `失败 ${s.error ?? ''}`} | ${s.ms} ms |`);
+  }
+  return lines.join('\n') + '\n';
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { return document.execCommand('copy'); } finally { ta.remove(); }
+  }
+}
+
+function flash(btn, text) {
+  const old = btn.textContent;
+  btn.textContent = text;
+  setTimeout(() => { btn.textContent = old; }, 1400);
 }
 
 /* —— 事件 —— */
@@ -342,6 +512,60 @@ $('#ping-form')?.addEventListener('submit', (e) => {
   const t = $('#ping-input').value.trim();
   const type = $('#ping-type').value;
   if (t) runTool('ping', `/api/ping?target=${encodeURIComponent(t)}&type=${encodeURIComponent(type)}`, $('#tool-ping-body'));
+});
+
+$('#dns-form')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const d = $('#dns-input').value.trim();
+  const type = $('#dns-type').value;
+  if (d) runTool('dns', `/api/dns?domain=${encodeURIComponent(d)}&type=${encodeURIComponent(type)}`, $('#tool-dns-body'));
+});
+
+$('#calc-form')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = $('#calc-input').value.trim();
+  if (v) renderCalc(v);
+});
+
+/* —— 导出事件 —— */
+$('#export-copy-json')?.addEventListener('click', async (e) => {
+  if (!lastInfo) return;
+  if (await copyText(JSON.stringify(lastInfo, null, 2))) flash(e.currentTarget, '已复制');
+});
+
+$('#export-copy-md')?.addEventListener('click', async (e) => {
+  if (!lastInfo) return;
+  if (await copyText(markdownReport(lastInfo))) flash(e.currentTarget, '已复制');
+});
+
+$('#export-download')?.addEventListener('click', () => {
+  if (!lastInfo) return;
+  const blob = new Blob([JSON.stringify(lastInfo, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cfip-${lastInfo.ip.replace(/[:]/g, '-')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+/* —— 键盘快捷键：/ 聚焦查询框，Esc 失焦清空 —— */
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target?.tagName ?? '').toLowerCase();
+  const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable;
+  if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    e.preventDefault();
+    input.focus();
+    input.select();
+    return;
+  }
+  if (e.key === 'Escape' && typing) {
+    const target = e.target;
+    if (target === input) input.value = '';
+    target.blur();
+  }
 });
 
 /* —— 启动：深链 ?ip= 或查询本机；渲染查询历史 —— */

@@ -4,7 +4,16 @@
  * 限流风险由上层缓存（5min）+ 熔断兜底。
  */
 
-export type PingType = 'ping' | 'http' | 'dns';
+export type PingType = 'ping' | 'http' | 'dns' | 'mtr';
+
+/** MTR 单跳 */
+export interface MtrHop {
+  hop: number;
+  ip: string | null;
+  hostname: string | null;
+  rttMs: number | null;
+  lossPct: number | null;
+}
 
 export interface PingProbeResult {
   country: string | null;
@@ -19,6 +28,8 @@ export interface PingProbeResult {
   totalMs: number | null;
   /** dns：解析记录 */
   records: string[];
+  /** mtr：逐跳路由 */
+  hops: MtrHop[];
   error: string | null;
 }
 
@@ -37,7 +48,7 @@ const MAX_LIMIT = 10;
 const POLL_ATTEMPTS = 12;
 const POLL_INTERVAL_MS = 800;
 
-export const PING_TYPES: PingType[] = ['ping', 'http', 'dns'];
+export const PING_TYPES: PingType[] = ['ping', 'http', 'dns', 'mtr'];
 
 function num(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
@@ -45,6 +56,25 @@ function num(v: unknown): number | null {
 
 function str(v: unknown): string | null {
   return typeof v === 'string' && v.length > 0 ? v : null;
+}
+
+/** MTR：把 hops[].timings[].rtt 归一到平均 RTT，并保留丢包率 */
+function normalizeHops(raw: unknown): MtrHop[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item, i) => {
+    const h = (item ?? {}) as Record<string, unknown>;
+    const timings = Array.isArray(h.timings) ? (h.timings as Array<Record<string, unknown>>) : [];
+    const rtts = timings.map((t) => num(t?.rtt)).filter((n): n is number => n !== null);
+    const stats = (h.stats ?? {}) as Record<string, unknown>;
+    const avg = rtts.length ? Math.round((rtts.reduce((a, b) => a + b, 0) / rtts.length) * 100) / 100 : num(stats.avg);
+    return {
+      hop: num(h.hop) ?? i + 1,
+      ip: str(h.resolvedAddress),
+      hostname: str(h.resolvedHostname),
+      rttMs: avg,
+      lossPct: num(stats.loss),
+    };
+  });
 }
 
 function normalizeResult(raw: unknown): PingProbeResult {
@@ -64,6 +94,7 @@ function normalizeResult(raw: unknown): PingProbeResult {
     statusCode: num(result.statusCode),
     totalMs: num(timings.total),
     records: answers.map((a) => str(a.answer ?? a.data)).filter((x): x is string => x !== null),
+    hops: normalizeHops(result.hops),
     error: str(r.error) ?? str(result.error),
   };
 }

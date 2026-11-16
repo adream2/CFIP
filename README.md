@@ -5,11 +5,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 
-基于 **Cloudflare Workers** 的 IP 详情查询服务：输入任意 IPv4/IPv6（或留空查询本机 IP），一次返回尽可能全面的信息——归属地（国家/省/市/邮编/经纬度/时区）、运营商（ISP/ORG）、ASN、节点归属（云厂商/CDN 识别、托管 vs 住宅、Anycast）、反向解析（rDNS）、DNSBL 黑名单、代理/VPN/Tor 识别、注册局信息（RDAP 网段/滥用邮箱）等。
+基于 **Cloudflare Workers** 的 IP 详情查询服务：输入任意 IPv4/IPv6（或留空查询本机 IP），一次返回尽可能全面的信息——归属地（国家/省/市/邮编/经纬度/时区）、运营商（ISP/ORG）、ASN、节点归属（云厂商/CDN 识别、托管 vs 住宅、Anycast、原生 vs 广播 IP）、反向解析（rDNS）、DNSBL 黑名单、代理/VPN/Tor 识别、注册局信息（RDAP 网段/滥用邮箱/注册国家）等。
 
 - 零密钥可用：所有默认数据源均无需 API Key
 - 多源聚合 + 字段级优先级合并 + 单源熔断降级 + 多源位置对比
-- 内置工具箱：出口探测 / 域名工具箱 / 全球 Ping / 服务状态（借鉴 one-ip，零 Key）
+- 内置工具箱：出口探测 / 域名工具箱 / 多解析器 DNS 对比 / 全球 Ping 与 MTR / IP 计算器 / 服务状态（零 Key）
+- 结果可导出：复制 JSON、复制 Markdown 诊断报告、下载 JSON（全部本地生成）
 - SEO / GEO 就绪：canonical + OG/Twitter + JSON-LD（WebSite/SoftwareApplication/FAQPage）+ `robots.txt` / `sitemap.xml` / `llms.txt`，AI 爬虫显式放行
 - 前端零外部请求：内联 SVG 地图、localStorage 查询历史、无 CDN 无统计脚本（统计/广告为可选项，默认关闭）
 - 6 小时结果缓存（Cache API），共享出口限流友好
@@ -24,7 +25,8 @@
 | `/ip[?ip=]` | 纯文本 IP 地址（脚本友好） |
 | `/api/probe` | 出口探测：各 AI/云服务视角的 Worker 出口 IP 与可达性 |
 | `/api/domain?domain=` | 域名工具箱：DoH 解析 + CDN 识别 + RDAP WHOIS |
-| `/api/ping?target=&type=` | 全球 Ping（Globalping，ping/http/dns，匿名 250 次/h） |
+| `/api/dns?domain=&type=` | 多解析器 DNS 对比：6 个公共 DoH 并发查询 + 一致性判定（污染/区域调度） |
+| `/api/ping?target=&type=` | 全球 Ping / MTR（Globalping，ping/http/dns/**mtr**，匿名 250 次/h） |
 | `/api/status` | 服务状态聚合（Cloudflare/GitHub/OpenAI/Anthropic） |
 | `/api/site-config` | 统计/广告配置（来自 Workers 变量，空值表示未启用） |
 | `/robots.txt` | 抓取规则（放行搜索引擎与 AI 爬虫，屏蔽 `/api`、`/ip`） |
@@ -40,7 +42,7 @@ curl -s https://<your-worker>.workers.dev/api/domain?domain=github.com | head -3
 curl -s https://<your-worker>.workers.dev | head -20   # 纯文本摘要
 ```
 
-JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connection`（仅自身查询）/ `comparison`（多源位置对比）/ `meta`（数据源状态、耗时、warnings）。判定类字段（如 `node.hosting`）带 `confidence` 与 `source`，标注推断强度。
+JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connection`（仅自身查询）/ `comparison`（多源位置对比）/ `meta`（数据源状态、耗时、warnings）。判定类字段（如 `node.hosting`、`node.ipType`）带 `confidence` 与 `source`，`node.ipType.reasons` 列出判定依据。
 
 ## 数据源
 
@@ -50,8 +52,9 @@ JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connect
 | ipwho.is（主） | 地理全套、ASN/ISP/ORG、代理识别、托管识别 | 否 | 1000/天 | 降级 ip-api |
 | ip-api.com（二级） | 地理、ISP/ORG/AS、移动/托管/代理、rDNS 兜底 | 否 | 45/分钟 | `ENABLE_IPAPI=false` 可关 |
 | ip2region 离线库 | **国内中文省/市/运营商**（xdb 随 Workers Assets 部署，仅 IPv4） | 否 | 无 | 缺数据时 warning，中文归属退化为在线源 |
-| RDAP（rdap.org 引导） | 网段 CIDR、RIR、注册时间、滥用投诉邮箱、用途类型 | 否 | 无 | network 段留空 |
+| RDAP（rdap.org 引导） | 网段 CIDR、RIR、注册国家、注册时间、滥用投诉邮箱、用途类型 | 否 | 无 | network 段留空 |
 | Cloudflare DoH | rDNS 反解、5 个 DNSBL 黑名单（含命中原因 TXT）、域名解析 | 否 | 无 | rdnsError / 空记录 |
+| 公共 DoH ×6 | `/api/dns` 多解析器对比：Cloudflare / Google / Quad9 / AdGuard / AliDNS / DNSPod | 否 | 无 | 单源失败不影响整体 |
 | bgp.tools | ASN 名称/描述/注册国家（已知 ASN 时触发） | 否 | 无 | 忽略 |
 | Globalping | 全球分布式探针（ping/http/dns 测量，`/api/ping`） | 否 | 匿名 250 次/h | 429 时提示稍后再试 |
 | Statuspage（CF/GH/OpenAI/Anthropic） | 服务状态聚合（`/api/status`） | 否 | 无 | 字段置空 |
@@ -87,7 +90,7 @@ GH_TOKEN=<有 Contents 写权限的 PAT> npm run xdb:sync
 npx wrangler dev
 curl "http://localhost:8787/api?ip=114.114.114.114"
 curl "http://localhost:8787/api/probe"
-npm test          # 150 个测试（ip/merge/xdb/render/inject/seo/tools/adapters/handler 集成）
+npm test          # 182 个测试（ip/ip-type/calc/merge/xdb/render/inject/seo/tools/dns/adapters/handler 集成）
 ```
 
 ### 4. 部署
@@ -205,7 +208,7 @@ export const siteConfig = {
 ## 架构
 
 ```
-请求 → 路由(/api | /ip | /api/probe | /api/domain | /api/ping | /api/status
+请求 → 路由(/api | /ip | /api/probe | /api/domain | /api/dns | /api/ping | /api/status
               | / + UA 协商 | ASSETS)
   → parseIp 校验/规范化 → classifyIp（非公网短路，零外部请求）
   → Cache API 读取（仅显式 ?ip=；过半衰期后台刷新）
@@ -213,14 +216,29 @@ export const siteConfig = {
   → bgptools 条件追加轮（已知 ASN 时）
   → mergeResults 字段级优先级合并（priorities.ts）
   → 静态 ASN 映射兜底（provider-map.ts：云厂商/CDN/anycast）
+  → deriveIpType 原生/广播判定（ip-type.ts：注册地 vs 使用地）
   → comparison 多源位置对比 → 写缓存 → 响应（JSON / 文本 / HTML）
 ```
+
+### IP 类型判定（原生 / 广播）
+
+`node.ipType` 为启发式推断，不做黑箱结论：
+
+| 判定 | 依据 | 置信度 |
+| --- | --- | --- |
+| 原生 IP | 地理归属国家 = RDAP 注册国家 | high |
+| 原生 IP | 地理归属国家 = AS 注册国家（RDAP 缺失时退回） | medium |
+| 广播 IP | 注册地 ≠ 使用地（跨境机房 / CDN 回源 / 代理池常见） | high / medium |
+| 无法判定 | RDAP 与 bgp.tools 均无注册地信息 | low |
+
+`reasons` 数组给出完整依据（含 rDNS 云/IDC 关键词、ASN 归属），前端折叠展示。
 
 ```
 src/
 ├── index.ts            # Worker 入口：路由、编排、缓存、响应协商
 ├── types.ts            # 统一 IpInfo schema
 ├── ip.ts               # IP 解析/分类/ARPA（纯函数）
+├── ip-type.ts          # 原生/广播 IP 判定（纯函数 + 判定依据）
 ├── merge.ts            # 字段级优先级合并器
 ├── cache.ts            # Cache API 封装
 ├── respond.ts          # JSON/文本协商、UA 判定
@@ -229,9 +247,11 @@ src/
 ├── config.ts           # 环境变量默认值
 ├── adapters/           # 9 个数据源适配器 + 注册/执行 + 优先级表 + 熔断
 ├── tools/              # 工具端点：probe（出口探测）/ domain（DNS+RDAP+CDN）
-│                       #   ping（Globalping）/ status（状态聚合）/ cache（TTL 缓存）
+│                       #   dns（6 解析器对比）/ ping（Globalping，含 MTR）
+│                       #   status（状态聚合）/ cache（TTL 缓存）
 └── xdb/searcher.ts     # ip2region xdb 二进制查询（自实现）
 public/                 # Workers Assets：单页 + 原生 JS + CSS + og.png + data/ip2region_v4.xdb
+│   └── assets/calc.js  # 纯前端 IP 计算器（IPv4/IPv6，零请求，可单测）
 scripts/sync-xdb.mjs    # xdb 数据同步（下载 → Contents API 推送进仓库，随资产部署）
 scripts/make-og.ps1     # 生成 1200×630 分享图（GDI+，需 UTF-8 BOM）
 test/                   # Vitest（@cloudflare/vitest-pool-workers）
@@ -247,6 +267,7 @@ CSS 已预留 `@font-face`（`public/assets/fonts/DingTalk-JinBuTi-CN-subset.wof
 
 ## 设计参考
 
+- [jason5ng32/MyIP](https://github.com/jason5ng32/MyIP) — 全功能 IP 工具箱（功能对标：原生/广播 IP 判定、多解析器 DNS 对比、MTR、IP 计算器、诊断报告导出）
 - [zhihui-hu/one-ip](https://github.com/zhihui-hu/one-ip) — 一站式 IP 工具箱（功能矩阵参考：出口探测/域名工具/全球 Ping/服务状态）
 - [jinhuaitao/My-IP](https://github.com/jinhuaitao/My-IP) — Worker IP 信息页（UA 协商、端点设计）
 - [Adgerlee/CF-IPInfo](https://github.com/Adgerlee/CF-IPInfo) — 仪表盘与多语言
@@ -258,6 +279,8 @@ CSS 已预留 `@font-face`（`public/assets/fonts/DingTalk-JinBuTi-CN-subset.wof
 ## 已知限制
 
 - ip2region 仅 IPv4（见上）；「住宅宽带 vs 托管」无权威免费源，`isBroadband` 明确标注为推断
+- 原生 / 广播 IP 判定为启发式：以 RDAP 注册国家为权威、缺失时退回 AS 注册国家，与地理归属国家比对；跨境 Anycast、CDN 回源会让结论接近「中转」而非「欺诈」，仅作参考
+- `/api/dns` 的结果分歧不等于污染：CDN GeoDNS 就近调度、解析器缓存不同步同样会造成差异，需结合国内外解析器分别判断
 - Cloudflare 平台侧的标准请求日志不受应用控制；应用侧本身零日志零存储
 - IP 地理定位精度取决于数据源，城市级为行业常态；DNSBL 逐列表独立展示，不下单一结论
 - 出口探测反映的是 **Worker 共享出口**在服务方的视角，不代表访客本机网络；Globalping 匿名额度按出口 IP 共享，高峰期可能触发 429

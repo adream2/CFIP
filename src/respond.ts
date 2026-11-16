@@ -3,6 +3,7 @@
  */
 
 import type { IpInfo } from './types';
+import { IP_TYPE_LABELS } from './ip-type';
 
 /** CLI 工具 UA 判定（浏览器 UA 走 HTML） */
 export function wantsText(request: Request): boolean {
@@ -69,6 +70,9 @@ export function toTextSummary(info: IpInfo): string {
   }
   if (N.abuseEmail) lines.push(`滥用邮箱: ${N.abuseEmail}`);
   if (info.node.provider) lines.push(`运营商/节点: ${info.node.provider}`);
+  if (info.node.ipType) {
+    lines.push(`IP 类型: ${IP_TYPE_LABELS[info.node.ipType.value]}（置信度 ${info.node.ipType.confidence}）`);
+  }
   lines.push(`托管:    ${yn(info.node.hosting?.value)}  移动网络: ${yn(info.node.isMobile?.value)}  Anycast: ${yn(info.node.anycast?.value)}`);
   if (info.node.rdns.length) lines.push(`反向解析: ${info.node.rdns.join(', ')}`);
   if (info.reputation.dnsbl.length) {

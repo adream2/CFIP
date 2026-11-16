@@ -33,6 +33,17 @@ export interface Judgement<T> {
   source: SourceId;
 }
 
+/** 原生 / 广播 IP 判定（参考 MyIP 的 IP 类型概念：注册地 vs 实际使用地是否一致） */
+export type IpTypeValue = 'native' | 'broadcast' | 'unknown';
+
+export interface IpTypeVerdict {
+  value: IpTypeValue;
+  confidence: 'high' | 'medium' | 'low';
+  source: SourceId;
+  /** 判定依据（展示给用户，避免黑箱结论） */
+  reasons: string[];
+}
+
 export interface RangeInfo {
   start: string | null;
   end: string | null;
@@ -99,6 +110,8 @@ export interface IpInfo {
     asName: string | null;
     asDomain: string | null;
     asCountry: string | null;
+    /** RDAP 登记的国家（注册地），与地理国家不一致时提示广播 IP */
+    registryCountry: string | null;
     range: RangeInfo;
     rir: string | null;
     allocationDate: string | null;
@@ -114,6 +127,7 @@ export interface IpInfo {
     providerType: 'cloud' | 'cdn' | 'hosting' | 'isp' | 'education' | 'government' | 'unknown' | null;
     isMobile: Judgement<boolean> | null;
     isBroadband: Judgement<boolean> | null;
+    ipType: IpTypeVerdict | null;
     rdns: string[];
     rdnsError: string | null;
   };
@@ -176,6 +190,7 @@ export function emptyIpInfo(ip: string, version: 4 | 6, cls: IpClass, cacheTtlSe
     network: {
       asn: null, asnLabel: null,
       isp: null, org: null, asName: null, asDomain: null, asCountry: null,
+      registryCountry: null,
       range: { start: null, end: null, cidr: null, count: null },
       rir: null, allocationDate: null, abuseEmail: null,
       usageType: null, rdapServer: null,
@@ -183,7 +198,7 @@ export function emptyIpInfo(ip: string, version: 4 | 6, cls: IpClass, cacheTtlSe
     node: {
       hosting: null, anycast: null,
       provider: null, providerType: null,
-      isMobile: null, isBroadband: null,
+      isMobile: null, isBroadband: null, ipType: null,
       rdns: [], rdnsError: null,
     },
     reputation: {

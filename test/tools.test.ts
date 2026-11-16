@@ -187,6 +187,37 @@ describe('ping：Globalping', () => {
     expect(r.status).toBe('failed');
     expect(r.error).toMatch(/暂支持/);
   });
+
+  it('mtr：归一化逐跳路由', async () => {
+    let created = false;
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/v1/measurements') && init?.method === 'POST') {
+        created = true;
+        expect(JSON.parse(String(init.body))).toMatchObject({ type: 'mtr', target: '1.1.1.1' });
+        return new Response(JSON.stringify({ id: 'm-mtr' }), { status: 202, headers: { Location: 'https://api.globalping.io/v1/measurements/m-mtr' } });
+      }
+      if (!created) return new Response('not found', { status: 404 });
+      return new Response(JSON.stringify({
+        id: 'm-mtr',
+        status: 'finished',
+        results: [{
+          probe: { country: 'JP', city: 'Tokyo', asn: 2497 },
+          result: {
+            hops: [
+              { hop: 1, resolvedAddress: '192.168.1.1' },
+              { hop: 2, resolvedAddress: '10.0.0.1', resolvedHostname: 'core1.example', timings: [{ rtt: 1.5 }, { rtt: 2.5 }], stats: { loss: 0 } },
+            ],
+          },
+        }],
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as unknown as typeof fetch);
+    const r = await runPing(fetch, 'mtr', '1.1.1.1', 2);
+    expect(r.status).toBe('finished');
+    expect(r.results[0].hops).toHaveLength(2);
+    expect(r.results[0].hops[1]).toMatchObject({ hop: 2, ip: '10.0.0.1', hostname: 'core1.example', rttMs: 2, lossPct: 0 });
+    expect(r.results[0].hops[0].rttMs).toBeNull();
+  });
 });
 
 describe('工具端点路由（handler 集成）', () => {

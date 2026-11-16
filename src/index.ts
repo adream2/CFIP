@@ -19,6 +19,7 @@ import { bgptoolsAdapter } from './adapters/bgptools';
 import { asnAnycast, asnProvider } from './adapters/provider-map';
 import type { AdapterCtx } from './adapters/types';
 import { mergeResults } from './merge';
+import { deriveIpType } from './ip-type';
 import { loadConfig } from './config';
 import { cacheAgeMs, readCache, writeCache } from './cache';
 import { corsHeaders, errorJson, jsonResponse, toTextSummary, wantsText } from './respond';
@@ -27,6 +28,8 @@ import { siteOrigin, robotsTxt, sitemapXml, llmsTxt } from './seo';
 import { withCache } from './tools/cache';
 import { runProbes } from './tools/probe';
 import { runDomainReport, isValidDomain } from './tools/domain';
+import { runDnsCompare, DNS_TYPES } from './tools/dns';
+import type { DnsType } from './tools/dns';
 import { runStatusReport } from './tools/status';
 import { runPing, PING_TYPES } from './tools/ping';
 import type { PingType } from './tools/ping';
@@ -51,6 +54,14 @@ function rttOf(cf: IncomingRequestCfProperties): number | null {
     if (typeof v === 'number' && Number.isFinite(v)) return v;
   }
   return null;
+}
+
+/** 查询参数里的域名归一化：去协议头、去路径、小写 */
+function normalizeQueryDomain(raw: string | null): string {
+  return (raw ?? '')
+    .trim().toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/[/?#].*$/, '');
 }
 
 function clientIpOf(request: Request): string | null {
@@ -134,6 +145,7 @@ async function lookup(
 
   // 派生字段
   merged.location.isChinaMainland = isChinaMainland(merged.location.countryCode);
+  merged.node.ipType = deriveIpType(merged);
 
   // meta
   merged.meta.sources = outcomes.map((o) => ({
@@ -243,12 +255,17 @@ export default {
       return jsonTool(data, hit, t0);
     }
     if (url.pathname === '/api/domain') {
-      const domain = (url.searchParams.get('domain') ?? '')
-        .trim().toLowerCase()
-        .replace(/^https?:\/\//, '')
-        .replace(/[/?#].*$/, '');
+      const domain = normalizeQueryDomain(url.searchParams.get('domain'));
       if (!isValidDomain(domain)) return errorJson('无效的域名（示例：example.com）', 400);
       const { data, hit } = await withCache(`domain:${domain}`, 3600, () => runDomainReport(fetch, domain));
+      return jsonTool(data, hit, t0);
+    }
+    if (url.pathname === '/api/dns') {
+      const domain = normalizeQueryDomain(url.searchParams.get('domain'));
+      if (!isValidDomain(domain)) return errorJson('无效的域名（示例：example.com）', 400);
+      const typeRaw = (url.searchParams.get('type') ?? 'A').toUpperCase() as DnsType;
+      if (!DNS_TYPES.includes(typeRaw)) return errorJson(`type 仅支持: ${DNS_TYPES.join(' / ')}`, 400);
+      const { data, hit } = await withCache(`dns:${domain}:${typeRaw}`, 300, () => runDnsCompare(fetch, domain, typeRaw));
       return jsonTool(data, hit, t0);
     }
     if (url.pathname === '/api/ping') {

@@ -80,8 +80,9 @@ export function llmsTxt(origin: string): string {
 ## 能查什么
 
 - 归属地：国家、省/州、城市、区县、邮编、经纬度、时区（多源聚合 + 多源位置对比）
-- 网络：ASN、ISP / ORG、网段 CIDR、RIR、注册局滥用邮箱（RDAP）
-- 节点归属：云厂商 / CDN 识别、托管 vs 住宅（带置信度与来源）、Anycast 推断
+- 网络：ASN、ISP / ORG、网段 CIDR、RIR、注册国家、注册局滥用邮箱（RDAP）
+- 节点归属：原生 IP / 广播 IP 判定（注册地 vs 使用地，附置信度与依据）、云厂商 / CDN 识别、
+  托管 vs 住宅（带置信度与来源）、Anycast 推断
 - 信誉：5 个 DNSBL 黑名单逐列表结果、代理 / VPN / Tor 判定
 - 连接层（仅查询自身 IP 时）：HTTP 协议、TLS 版本与套件、TCP RTT、边缘节点 colo
 
@@ -91,7 +92,9 @@ export function llmsTxt(origin: string): string {
 - [纯文本 IP](${origin}/ip)：GET /ip，脚本友好，留空返回请求方自身 IP
 - [出口探测](${origin}/api/probe)：各 AI / 云服务视角下的出口 IP 与可达性
 - [域名工具箱](${origin}/api/domain?domain=github.com)：DoH 解析 + CDN 识别 + RDAP WHOIS
-- [全球 Ping](${origin}/api/ping?target=1.1.1.1&type=ping)：Globalping 分布式探针测量
+- [DNS 对比](${origin}/api/dns?domain=github.com&type=A)：6 个公共 DoH 解析器并发查询与一致性判定
+- [全球 Ping / MTR](${origin}/api/ping?target=1.1.1.1&type=ping)：Globalping 分布式探针测量
+  （type 支持 ping / http / dns / mtr）
 - [服务状态](${origin}/api/status)：Cloudflare / GitHub / OpenAI / Anthropic 状态聚合
 
 ## 使用说明

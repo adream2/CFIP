@@ -45,6 +45,7 @@ export const FIELD_PRIORITIES: Record<string, SourceId[]> = {
   'network.asName': ['bgptools', 'rdap', 'ipwhois', 'ipapi'],
   'network.asDomain': ['ipwhois', 'rdap'],
   'network.asCountry': ['bgptools', 'rdap'],
+  'network.registryCountry': ['rdap'],
   'network.range.start': ['rdap'],
   'network.range.end': ['rdap'],
   'network.range.cidr': ['rdap'],

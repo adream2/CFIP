@@ -569,10 +569,39 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+/* —— 工具箱分段控件 —— */
+const TOOLS_TAB_KEY = 'cfip-tools-tab';
+
+function initToolsTabs() {
+  const tabs = [...document.querySelectorAll('[data-tools-tab]')];
+  if (!tabs.length) return;
+  const panels = [...document.querySelectorAll('[data-tools-panel]')];
+
+  const activate = (id, persist = true) => {
+    for (const t of tabs) {
+      const on = t.dataset.toolsTab === id;
+      t.classList.toggle('on', on);
+      t.setAttribute('aria-selected', String(on));
+    }
+    for (const p of panels) p.hidden = p.dataset.toolsPanel !== id;
+    if (persist) {
+      try { localStorage.setItem(TOOLS_TAB_KEY, id); } catch { /* 隐私模式忽略 */ }
+    }
+  };
+
+  for (const t of tabs) t.addEventListener('click', () => activate(t.dataset.toolsTab));
+
+  let saved = null;
+  try { saved = localStorage.getItem(TOOLS_TAB_KEY); } catch { /* 忽略 */ }
+  const initial = tabs.some((t) => t.dataset.toolsTab === saved) ? saved : tabs[0].dataset.toolsTab;
+  activate(initial, false);
+}
+
 /* —— 启动：深链 ?ip= 或查询本机；渲染查询历史 —— */
 function boot() {
   renderHistory();
   initSitePlugins();
+  initToolsTabs();
   initLabs();
   // PWA 离线壳（仅 https / localhost 生效，失败静默）
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {

@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <meta name="theme-color" content="#e9edf7" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#14161d" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f6f7f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1312" media="(prefers-color-scheme: dark)">
   <title>IP 查询 · CFIP — 归属地 / ASN / 黑名单 / 代理检测</title>
   <meta name="description" content="输入 IPv4 / IPv6 查询 IP 归属地、运营商、ASN、原生/广播 IP 判定、DNSBL 黑名单与代理识别；并附连通性检测、WebRTC 泄漏检测、浏览器指纹、测速、MTR 路由追踪、DNS 污染对比、批量查询与免费 JSON API。">
   <meta name="keywords" content="IP查询,IP地址查询,IP归属地,IP定位,ASN查询,ASN归属,原生IP查询,广播IP,Whois查询,RDNS反向解析,DNSBL黑名单,IP黑名单,代理检测,VPN检测,Tor节点,IPv4查询,IPv6查询,DNS污染检测,MTR,路由追踪,子网计算器,IP计算器,连通性检测,WebRTC泄漏,浏览器指纹,测速,批量IP查询,IP信息API">
@@ -154,7 +154,7 @@
 <body>
   <div class="topbar">
     <div class="brand">CF<b>IP</b></div>
-    <nav><a class="on">概览</a><a href="#tools">工具</a></nav>
+    <nav><a class="on" href="#top">查询</a><a href="#tools">工具箱</a><a href="#faq">FAQ</a></nav>
     <a class="gh" href="https://github.com/adream2/CFIP" target="_blank" rel="noopener" title="GitHub 仓库" aria-label="GitHub 仓库">
       <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
     </a>
@@ -166,7 +166,7 @@
     <header class="hero">
       <p class="eyebrow">IP Intelligence</p>
       <h1>IP 地址详细信息查询</h1>
-      <p class="hero-lead">归属地、运营商、ASN、原生 / 广播 IP 判定、节点归属、反向解析、DNSBL 黑名单与代理识别，多源聚合到一页。支持 IPv4 / IPv6，留空即查本机。</p>
+      <p class="hero-lead">多源聚合的 IP 情报：归属地、ASN、原生 / 广播判定、DNSBL 与代理识别，外加连通性、WebRTC 泄漏、指纹与测速。留空即查本机。</p>
     </header>
 
     <section class="console" aria-label="IP 查询">
@@ -174,6 +174,7 @@
         <input id="ip-input" value="" placeholder="输入 IPv4 / IPv6，留空查询本机 IP" spellcheck="false" aria-label="IP 地址">
         <button id="btn-query" type="submit">查询</button>
       </form>
+      <div class="chips-row">
       <div class="chips" id="chips">
         <span class="chips-label">示例</span>
         <button type="button" class="chip" data-ip="8.8.8.8">8.8.8.8</button>
@@ -182,7 +183,8 @@
         <button type="button" class="chip" data-ip="223.104.60.60">223.104.60.60</button>
         <button type="button" class="chip" data-ip="2606:4700::1111">2606:4700::1111</button>
       </div>
-      <div class="chips" id="history" hidden></div>
+        <div class="chips" id="history" hidden></div>
+      </div>
     </section>
 
     <noscript>
@@ -200,12 +202,12 @@
       </div>
 
       <div class="grid2">
-        <div class="panel panel-loc full">
+        <div class="panel panel-loc">
           <h3>地理位置 <span class="src">多源聚合</span></h3>
           <div id="panel-location"></div>
         </div>
         <div class="panel">
-          <h3>网络与注册 <span class="src">RDAP + 多源</span></h3>
+          <h3>网络与注册 <span class="src">RDAP</span></h3>
           <div id="panel-network"></div>
         </div>
         <div class="panel">
@@ -216,25 +218,30 @@
           <h3>信誉与风险 <span class="src">DoH DNSBL</span></h3>
           <div id="panel-reputation"></div>
         </div>
-        <div class="panel full" id="panel-connection-wrap" hidden>
-          <h3>连接信息 <span class="src">request.cf</span></h3>
-          <div id="panel-connection"></div>
-        </div>
-        <div class="panel full">
-          <h3>查询元信息 <span class="src">sources</span></h3>
-          <div id="panel-meta"></div>
-        </div>
-        <details class="panel full" id="raw-json">
-          <summary>原始 JSON</summary>
-          <pre id="raw-json-body"></pre>
-        </details>
-      </div>
 
-      <div class="export-bar" id="export-bar">
-        <button type="button" class="export-btn" id="export-copy-json">复制 JSON</button>
-        <button type="button" class="export-btn" id="export-copy-md">复制诊断报告</button>
-        <button type="button" class="export-btn" id="export-download">下载 JSON</button>
-        <span class="export-hint">报告在本地生成，不上传</span>
+        <details class="panel full detail-panel" id="detail-panel">
+          <summary>诊断详情 · 连接信息 / 数据源 / 原始 JSON / 导出</summary>
+          <div class="detail-body">
+            <div id="panel-connection-wrap" hidden>
+              <h3>连接信息 <span class="src">request.cf</span></h3>
+              <div id="panel-connection"></div>
+            </div>
+            <div>
+              <h3>查询元信息 <span class="src">sources</span></h3>
+              <div id="panel-meta"></div>
+            </div>
+            <div class="detail-json">
+              <h3>原始 JSON</h3>
+              <pre id="raw-json-body"></pre>
+            </div>
+            <div class="export-bar" id="export-bar">
+              <button type="button" class="export-btn" id="export-copy-json">复制 JSON</button>
+              <button type="button" class="export-btn" id="export-copy-md">复制诊断报告</button>
+              <button type="button" class="export-btn" id="export-download">下载 JSON</button>
+              <span class="export-hint">报告在本地生成，不上传</span>
+            </div>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -243,9 +250,15 @@
 
     <section class="tools" id="tools">
       <h3 class="tools-title">工具箱</h3>
-
-      <h4 class="tools-group">网络诊断</h4>
-      <div class="tools-grid">
+      <div class="tools-tabs" role="tablist" aria-label="工具箱分组">
+        <button type="button" class="tools-tab on" data-tools-tab="net" role="tab" aria-selected="true">网络诊断</button>
+        <button type="button" class="tools-tab" data-tools-tab="privacy" role="tab" aria-selected="false">隐私与指纹</button>
+        <button type="button" class="tools-tab" data-tools-tab="lookup" role="tab" aria-selected="false">查询工具</button>
+        <button type="button" class="tools-tab" data-tools-tab="platform" role="tab" aria-selected="false">平台状态</button>
+      </div>
+      <div class="tools-panels">
+      <div class="tools-panel" data-tools-panel="net">
+<div class="tools-grid">
         <div class="tool" id="tool-conn">
           <div class="tool-head"><b>连通性检测</b></div>
           <form id="conn-form" class="tool-form conn-form" autocomplete="off">
@@ -299,9 +312,10 @@
           <div class="tool-body" id="tool-speed-body" hidden></div>
         </div>
       </div>
+      </div>
 
-      <h4 class="tools-group">隐私与指纹</h4>
-      <div class="tools-grid">
+      <div class="tools-panel" data-tools-panel="privacy">
+<div class="tools-grid">
         <div class="tool" id="tool-webrtc">
           <div class="tool-head"><b>WebRTC 泄漏</b><button type="button" class="tool-go" id="tool-webrtc-go">检测</button></div>
           <span>经 STUN 收集 ICE candidate，看 WebRTC 是否绕过代理暴露公网 IP、是否泄漏内网地址、mDNS 保护是否生效</span>
@@ -313,9 +327,10 @@
           <div class="tool-body" id="tool-fp-body" hidden></div>
         </div>
       </div>
+      </div>
 
-      <h4 class="tools-group">查询工具</h4>
-      <div class="tools-grid">
+      <div class="tools-panel" data-tools-panel="lookup">
+<div class="tools-grid">
         <div class="tool" id="tool-domain">
           <div class="tool-head"><b>域名工具箱</b></div>
           <form id="domain-form" class="tool-form" autocomplete="off">
@@ -353,9 +368,10 @@
           <div class="tool-body" id="tool-calc-body" hidden></div>
         </div>
       </div>
+      </div>
 
-      <h4 class="tools-group">平台状态</h4>
-      <div class="tools-grid">
+      <div class="tools-panel" data-tools-panel="platform">
+<div class="tools-grid">
         <div class="tool" id="tool-probe">
           <div class="tool-head"><b>出口探测</b><button type="button" class="tool-go" id="tool-probe-go">运行</button></div>
           <span>并发探测 CF / OpenAI / Anthropic / Grok / Google / GitHub —— CF 前端站点返回服务视角的出口 IP 与边缘节点</span>
@@ -367,6 +383,8 @@
           <div class="tool-body" id="tool-status-body" hidden></div>
         </div>
       </div>
+      </div>
+      </div>
     </section>
 
     <!-- 广告位：在 site-config.js 填 adsense.client + slots.beforeFooter 后显示，否则保持隐藏 -->
@@ -374,7 +392,8 @@
 
     <section class="faq" id="faq">
       <h3 class="tools-title">关于 CFIP · 常见问题</h3>
-      <p class="faq-lead">CFIP 是一个免费的在线 IP 信息查询工具，把归属地、运营商、ASN、节点归属、反向解析、DNSBL 黑名单与代理识别聚合到一页，并提供开放 JSON 接口。全部默认数据源均无需 API Key。</p>
+      <p class="faq-lead">CFIP 是一个免费的在线 IP 与网络诊断工具，把归属地、ASN、原生/广播判定、DNSBL 与代理识别聚合到一页，并提供连通性检测、WebRTC 泄漏、指纹、测速与开放 JSON 接口。默认数据源均无需 API Key。</p>
+      <div class="faq-list">
       <details>
         <summary>IP 归属地准确吗？为什么和实际位置有偏差？</summary>
         <p>归属地由多个商业 IP 库（ipwho.is、ip-api、ip2region 离线库等）聚合得出，多数只能精确到城市级。移动网络、CGNAT 共享出口、企业专线与代理都会让 IP 注册地与使用者实际位置不一致，页面会给出多源位置对比，便于判断误差范围。</p>
@@ -399,6 +418,7 @@
         <summary>有免费 API 吗？怎么调用？</summary>
         <p><code>/api?ip=8.8.8.8</code> 返回完整 JSON（CORS 全开，各数据源状态与耗时都在 meta 中）；<code>/ip?ip=8.8.8.8</code> 只返回纯文本 IP；不带 ip 参数则查询请求方自身 IP。</p>
       </details>
+          </div>
     </section>
 
     <div class="promo">

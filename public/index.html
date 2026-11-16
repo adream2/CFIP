@@ -7,12 +7,15 @@
   <meta name="theme-color" content="#e9edf7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#14161d" media="(prefers-color-scheme: dark)">
   <title>IP 查询 · CFIP — 归属地 / ASN / 黑名单 / 代理检测</title>
-  <meta name="description" content="输入 IPv4 / IPv6 一键查询 IP 归属地（国家/省/市/邮编/经纬度/时区）、运营商、ASN、原生/广播 IP 判定、节点归属、反向解析、DNSBL 黑名单与代理/VPN/Tor 识别，附 DNS 污染对比、MTR 路由追踪、IP 计算器、出口探测与免费 JSON API。">
-  <meta name="keywords" content="IP查询,IP地址查询,IP归属地,IP定位,ASN查询,ASN归属,原生IP查询,广播IP,Whois查询,RDNS反向解析,DNSBL黑名单,IP黑名单,代理检测,VPN检测,Tor节点,IPv4查询,IPv6查询,DNS污染检测,MTR,路由追踪,子网计算器,IP计算器,IP信息API">
+  <meta name="description" content="输入 IPv4 / IPv6 查询 IP 归属地、运营商、ASN、原生/广播 IP 判定、DNSBL 黑名单与代理识别；并附连通性检测、WebRTC 泄漏检测、浏览器指纹、测速、MTR 路由追踪、DNS 污染对比、批量查询与免费 JSON API。">
+  <meta name="keywords" content="IP查询,IP地址查询,IP归属地,IP定位,ASN查询,ASN归属,原生IP查询,广播IP,Whois查询,RDNS反向解析,DNSBL黑名单,IP黑名单,代理检测,VPN检测,Tor节点,IPv4查询,IPv6查询,DNS污染检测,MTR,路由追踪,子网计算器,IP计算器,连通性检测,WebRTC泄漏,浏览器指纹,测速,批量IP查询,IP信息API">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
   <meta name="author" content="CFIP">
   <link rel="canonical" href="__SITE_ORIGIN__/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="CFIP">
   <!--HEAD_INJECT-->
   <link rel="stylesheet" href="/assets/style.css">
 
@@ -76,6 +79,10 @@
           "代理 / VPN / Tor 识别",
           "多解析器 DNS 对比（污染检测）",
           "MTR 路由追踪、出口探测、域名工具箱、全球 Ping",
+          "连通性检测（30 个站点 / 5 大类）",
+          "WebRTC 泄漏检测与浏览器指纹",
+          "下载 / 上传 / 延迟测速",
+          "ASN 查询（上游 / 下游 / 宣告前缀）与批量 IP 查询",
           "IPv4 / IPv6 子网计算器",
           "免费 JSON API"
         ]
@@ -114,6 +121,14 @@
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "原生 IP 指 IP 的注册地与实际使用地一致；广播 IP 指注册在 A 国、实际在 B 国广播使用（常见于跨境机房、CDN 回源与代理池）。CFIP 以 RDAP 登记国家为权威、缺失时退回 AS 注册国家，与地理归属国家比对后给出判定，并附置信度与判定依据。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "连通性检测、WebRTC 泄漏和指纹是怎么测的？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "连通性检测由你的浏览器直接连接 30 个目标站点（AI / 流媒体 / 社交 / 开发 / 国内），两轮取最小延迟，反映的是你的真实网络而不是服务器出口；WebRTC 泄漏通过 STUN 收集 ICE candidate，判断是否绕过代理暴露公网 IP、是否泄漏内网地址；指纹采集 Canvas / WebGL / 音频 / 字体等本地特征后哈希，全部在浏览器内完成，不上传任何数据。"
             }
           },
           {
@@ -229,23 +244,25 @@
     <section class="tools" id="tools">
       <h3 class="tools-title">工具箱</h3>
 
+      <h4 class="tools-group">网络诊断</h4>
       <div class="tools-grid">
-        <div class="tool" id="tool-probe">
-          <div class="tool-head"><b>出口探测</b><button type="button" class="tool-go" id="tool-probe-go">运行</button></div>
-          <span>并发探测 CF / OpenAI / Anthropic / Grok / Google / GitHub —— CF 前端站点返回服务视角的出口 IP 与边缘节点</span>
-          <div class="tool-body" id="tool-probe-body" hidden></div>
-        </div>
-        <div class="tool" id="tool-domain">
-          <div class="tool-head"><b>域名工具箱</b></div>
-          <form id="domain-form" class="tool-form" autocomplete="off">
-            <input id="domain-input" type="text" placeholder="example.com" spellcheck="false" aria-label="域名">
-            <button type="submit">查询</button>
+        <div class="tool" id="tool-conn">
+          <div class="tool-head"><b>连通性检测</b></div>
+          <form id="conn-form" class="tool-form conn-form" autocomplete="off">
+            <div class="check-row">
+              <label><input type="checkbox" name="conn-group" value="ai" checked> AI</label>
+              <label><input type="checkbox" name="conn-group" value="streaming" checked> 流媒体</label>
+              <label><input type="checkbox" name="conn-group" value="social" checked> 社交</label>
+              <label><input type="checkbox" name="conn-group" value="dev" checked> 开发</label>
+              <label><input type="checkbox" name="conn-group" value="cn" checked> 国内</label>
+            </div>
+            <button type="submit">开始检测</button>
           </form>
-          <span>DoH 解析 A/AAAA/CNAME + CDN 识别 + RDAP WHOIS</span>
-          <div class="tool-body" id="tool-domain-body" hidden></div>
+          <span>浏览器侧直连 30 个站点（AI / 流媒体 / 社交 / 开发 / 国内），两轮取最小延迟，判断当前网络能访问什么 —— 反映你的真实网络，而非 Worker 出口</span>
+          <div class="tool-body" id="tool-conn-body" hidden></div>
         </div>
         <div class="tool" id="tool-ping">
-          <div class="tool-head"><b>全球 Ping</b></div>
+          <div class="tool-head"><b>全球 Ping / MTR</b></div>
           <form id="ping-form" class="tool-form" autocomplete="off">
             <input id="ping-input" type="text" placeholder="IP 或域名" spellcheck="false" aria-label="目标">
             <select id="ping-type" aria-label="测量类型">
@@ -256,7 +273,7 @@
             </select>
             <button type="submit">运行</button>
           </form>
-          <span>Globalping 全球探针测量（ping / http / dns / mtr）· 匿名 250 次/h · 缓存 5 分钟</span>
+          <span>Globalping 全球探针测量（ping / http / dns / 逐跳 mtr）· 匿名 250 次/h · 缓存 5 分钟</span>
           <div class="tool-body" id="tool-ping-body" hidden></div>
         </div>
         <div class="tool" id="tool-dns">
@@ -276,6 +293,56 @@
           <span>6 个公共 DoH 解析器并发查询（Cloudflare / Google / Quad9 / AdGuard / AliDNS / DNSPod），对比国内外解析一致性，辅助判断 DNS 污染与区域调度</span>
           <div class="tool-body" id="tool-dns-body" hidden></div>
         </div>
+        <div class="tool" id="tool-speed">
+          <div class="tool-head"><b>测速</b><button type="button" class="tool-go" id="tool-speed-go">开始测速</button></div>
+          <span>下载 / 上传 / 延迟，测你家到最近 Cloudflare 边缘节点的链路（自建端点，无第三方测速站）· 约消耗 20–40MB 流量</span>
+          <div class="tool-body" id="tool-speed-body" hidden></div>
+        </div>
+      </div>
+
+      <h4 class="tools-group">隐私与指纹</h4>
+      <div class="tools-grid">
+        <div class="tool" id="tool-webrtc">
+          <div class="tool-head"><b>WebRTC 泄漏</b><button type="button" class="tool-go" id="tool-webrtc-go">检测</button></div>
+          <span>经 STUN 收集 ICE candidate，看 WebRTC 是否绕过代理暴露公网 IP、是否泄漏内网地址、mDNS 保护是否生效</span>
+          <div class="tool-body" id="tool-webrtc-body" hidden></div>
+        </div>
+        <div class="tool" id="tool-fp">
+          <div class="tool-head"><b>浏览器指纹</b><button type="button" class="tool-go" id="tool-fp-go">采集</button></div>
+          <span>Canvas / WebGL / 音频 / 字体 / 时区等本地特征生成指纹哈希 —— 看清「清掉 Cookie 后你仍可被识别到什么程度」</span>
+          <div class="tool-body" id="tool-fp-body" hidden></div>
+        </div>
+      </div>
+
+      <h4 class="tools-group">查询工具</h4>
+      <div class="tools-grid">
+        <div class="tool" id="tool-domain">
+          <div class="tool-head"><b>域名工具箱</b></div>
+          <form id="domain-form" class="tool-form" autocomplete="off">
+            <input id="domain-input" type="text" placeholder="example.com" spellcheck="false" aria-label="域名">
+            <button type="submit">查询</button>
+          </form>
+          <span>DoH 解析 A/AAAA/CNAME + CDN 识别 + RDAP WHOIS</span>
+          <div class="tool-body" id="tool-domain-body" hidden></div>
+        </div>
+        <div class="tool" id="tool-asn">
+          <div class="tool-head"><b>ASN 查询</b></div>
+          <form id="asn-form" class="tool-form" autocomplete="off">
+            <input id="asn-input" type="text" placeholder="AS13335" spellcheck="false" aria-label="ASN">
+            <button type="submit">查询</button>
+          </form>
+          <span>RIPEstat：AS 名称、宣告前缀、上下游邻居 · 缓存 1 小时</span>
+          <div class="tool-body" id="tool-asn-body" hidden></div>
+        </div>
+        <div class="tool" id="tool-bulk">
+          <div class="tool-head"><b>批量查询</b></div>
+          <form id="bulk-form" class="tool-form bulk-form" autocomplete="off">
+            <textarea id="bulk-input" rows="3" placeholder="一行一个，或逗号 / 空格分隔（最多 20 个）" spellcheck="false" aria-label="IP 列表"></textarea>
+            <button type="submit">批量查询</button>
+          </form>
+          <span>粘贴 IP 列表或日志片段，一次拿国家 / 城市 / ASN；结果可复制 CSV</span>
+          <div class="tool-body" id="tool-bulk-body" hidden></div>
+        </div>
         <div class="tool" id="tool-calc">
           <div class="tool-head"><b>IP 计算器</b></div>
           <form id="calc-form" class="tool-form" autocomplete="off">
@@ -284,6 +351,15 @@
           </form>
           <span>子网掩码、网络 / 广播地址、可用主机数、范围聚合为 CIDR；IPv6 压缩展开与地址总数 —— 纯本地计算，不发任何请求</span>
           <div class="tool-body" id="tool-calc-body" hidden></div>
+        </div>
+      </div>
+
+      <h4 class="tools-group">平台状态</h4>
+      <div class="tools-grid">
+        <div class="tool" id="tool-probe">
+          <div class="tool-head"><b>出口探测</b><button type="button" class="tool-go" id="tool-probe-go">运行</button></div>
+          <span>并发探测 CF / OpenAI / Anthropic / Grok / Google / GitHub —— CF 前端站点返回服务视角的出口 IP 与边缘节点</span>
+          <div class="tool-body" id="tool-probe-body" hidden></div>
         </div>
         <div class="tool" id="tool-status">
           <div class="tool-head"><b>服务状态</b><button type="button" class="tool-go" id="tool-status-go">刷新</button></div>
@@ -314,6 +390,10 @@
       <details>
         <summary>什么是原生 IP / 广播 IP？</summary>
         <p>原生 IP 指 IP 的注册地与实际使用地一致；广播 IP 指注册在 A 国、实际在 B 国广播使用（常见于跨境机房、CDN 回源与代理池）。CFIP 以 RDAP 登记国家为权威、缺失时退回 AS 注册国家，与地理归属国家比对后给出判定，并附置信度与判定依据。</p>
+      </details>
+      <details>
+        <summary>连通性检测、WebRTC 泄漏和指纹是怎么测的？</summary>
+        <p>连通性检测由你的浏览器直接连接 30 个目标站点（AI / 流媒体 / 社交 / 开发 / 国内），两轮取最小延迟，反映的是你的真实网络而不是服务器出口；WebRTC 泄漏通过 STUN 收集 ICE candidate，判断是否绕过代理暴露公网 IP、是否泄漏内网地址；指纹采集 Canvas / WebGL / 音频 / 字体等本地特征后哈希，全部在浏览器内完成，不上传任何数据。</p>
       </details>
       <details>
         <summary>有免费 API 吗？怎么调用？</summary>

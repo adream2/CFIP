@@ -33,6 +33,9 @@ import type { DnsType } from './tools/dns';
 import { runStatusReport } from './tools/status';
 import { runPing, PING_TYPES } from './tools/ping';
 import type { PingType } from './tools/ping';
+import { runAsnReport, parseAsn } from './tools/asn';
+import { runBulk, parseIpList, BULK_LIMIT } from './tools/bulk';
+import { speedBytesOf, downloadResponse, consumeUpload } from './tools/speed';
 
 const CLASS_LABELS: Record<IpClass, string> = {
   public: '公网',
@@ -226,8 +229,11 @@ export default {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-      return errorJson('仅支持 GET', 405);
+    // 仅 /api/speed 与 /api/bulk 接受 POST（上传测速、长 IP 列表）
+    const isPost = request.method === 'POST';
+    const postAllowed = url.pathname === '/api/speed' || url.pathname === '/api/bulk';
+    if (request.method !== 'GET' && request.method !== 'HEAD' && !(isPost && postAllowed)) {
+      return errorJson('仅支持 GET（/api/speed、/api/bulk 另支持 POST）', 405);
     }
 
     const cfg = loadConfig(env);
@@ -267,6 +273,41 @@ export default {
       if (!DNS_TYPES.includes(typeRaw)) return errorJson(`type 仅支持: ${DNS_TYPES.join(' / ')}`, 400);
       const { data, hit } = await withCache(`dns:${domain}:${typeRaw}`, 300, () => runDnsCompare(fetch, domain, typeRaw));
       return jsonTool(data, hit, t0);
+    }
+    if (url.pathname === '/api/asn') {
+      const asn = parseAsn(url.searchParams.get('asn') ?? url.searchParams.get('q'));
+      if (asn === null) return errorJson('缺少或无效的 asn（示例：AS13335 或 13335）', 400);
+      const { data, hit } = await withCache(`asn:${asn}`, 3600, () => runAsnReport(fetch, asn));
+      return jsonTool(data, hit, t0);
+    }
+    if (url.pathname === '/api/bulk') {
+      if (isPost) {
+        const len = Number(request.headers.get('content-length') ?? '0');
+        if (len > 8192) return errorJson(`IP 列表过大（上限 8KB / ${BULK_LIMIT} 个 IP）`, 413);
+      }
+      const raw = isPost ? await request.text() : (url.searchParams.get('ips') ?? '');
+      if (!raw.trim()) return errorJson(`缺少 ips 参数（逗号 / 空格 / 换行分隔，最多 ${BULK_LIMIT} 个）`, 400);
+      const { ips, invalid } = parseIpList(raw);
+      if (ips.length === 0) {
+        return errorJson(`未解析到合法 IP${invalid.length ? `（无效项：${invalid.slice(0, 3).join(', ')}）` : ''}`, 400);
+      }
+      const { data, hit } = await withCache(`bulk:${ips.join(',')}`, 600, () => runBulk(fetch, ips));
+      return jsonTool({ ...data, invalid }, hit, t0);
+    }
+    if (url.pathname === '/api/speed') {
+      if (isPost) {
+        const { received, ms } = await consumeUpload(request);
+        return new Response(JSON.stringify({ received, ms }), {
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            ...corsHeaders(),
+            'Cache-Control': 'no-store',
+            'X-Response-Time': `${Date.now() - t0}ms`,
+          },
+        });
+      }
+      const bytes = speedBytesOf(url.searchParams.get('bytes'));
+      return downloadResponse(bytes, (request.cf as IncomingRequestCfProperties | undefined)?.colo ?? null);
     }
     if (url.pathname === '/api/ping') {
       const target = (url.searchParams.get('target') ?? '').trim();

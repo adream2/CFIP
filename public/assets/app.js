@@ -3,6 +3,7 @@
 import { esc, dash, flagEmoji, row, rows, badge, judgement, yn, mapSvg } from './render.js';
 import { initSitePlugins } from './site-plugins.js';
 import { calcIp } from './calc.js';
+import { initLabs } from './labs.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -572,6 +573,11 @@ document.addEventListener('keydown', (e) => {
 function boot() {
   renderHistory();
   initSitePlugins();
+  initLabs();
+  // PWA 离线壳（仅 https / localhost 生效，失败静默）
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
   const paramIp = new URLSearchParams(location.search).get('ip');
   if (paramIp) {
     input.value = paramIp;

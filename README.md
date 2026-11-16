@@ -5,14 +5,16 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 
-基于 **Cloudflare Workers** 的 IP 详情查询服务：输入任意 IPv4/IPv6（或留空查询本机 IP），一次返回尽可能全面的信息——归属地（国家/省/市/邮编/经纬度/时区）、运营商（ISP/ORG）、ASN、节点归属（云厂商/CDN 识别、托管 vs 住宅、Anycast、原生 vs 广播 IP）、反向解析（rDNS）、DNSBL 黑名单、代理/VPN/Tor 识别、注册局信息（RDAP 网段/滥用邮箱/注册国家）等。
+基于 **Cloudflare Workers** 的 IP 与网络诊断工具：查询任意 IPv4/IPv6（或留空查本机）的归属地、运营商、ASN、节点归属（云厂商/CDN、托管 vs 住宅、Anycast、原生 vs 广播 IP）、反向解析、DNSBL 黑名单、代理/VPN/Tor 识别、RDAP 注册信息；并内置浏览器侧诊断（连通性、WebRTC 泄漏、指纹、测速）与基建查询（ASN、批量 IP、DNS 对比、MTR、子网计算器）。
 
 - 零密钥可用：所有默认数据源均无需 API Key
 - 多源聚合 + 字段级优先级合并 + 单源熔断降级 + 多源位置对比
-- 内置工具箱：出口探测 / 域名工具箱 / 多解析器 DNS 对比 / 全球 Ping 与 MTR / IP 计算器 / 服务状态（零 Key）
+- 内置工具箱分四组：网络诊断 / 隐私与指纹 / 查询工具 / 平台状态
+- 浏览器侧诊断全部在本地完成，不上传数据；测速用自建端点，不依赖第三方测速站
 - 结果可导出：复制 JSON、复制 Markdown 诊断报告、下载 JSON（全部本地生成）
+- PWA：可安装 + 离线壳（HTML network-first，静态资源 stale-while-revalidate）
 - SEO / GEO 就绪：canonical + OG/Twitter + JSON-LD（WebSite/SoftwareApplication/FAQPage）+ `robots.txt` / `sitemap.xml` / `llms.txt`，AI 爬虫显式放行
-- 前端零外部请求：内联 SVG 地图、localStorage 查询历史、无 CDN 无统计脚本（统计/广告为可选项，默认关闭）
+- 前端除主动触发的诊断外不发起第三方请求：内联 SVG 地图、localStorage 查询历史、无 CDN 无统计脚本（统计/广告为可选项，默认关闭）
 - 6 小时结果缓存（Cache API），共享出口限流友好
 - 隐私：不记录查询日志、不建查询数据库，仅缓存
 
@@ -27,6 +29,9 @@
 | `/api/domain?domain=` | 域名工具箱：DoH 解析 + CDN 识别 + RDAP WHOIS |
 | `/api/dns?domain=&type=` | 多解析器 DNS 对比：6 个公共 DoH 并发查询 + 一致性判定（污染/区域调度） |
 | `/api/ping?target=&type=` | 全球 Ping / MTR（Globalping，ping/http/dns/**mtr**，匿名 250 次/h） |
+| `/api/asn?asn=` | ASN 查询：AS 名称、宣告前缀、上下游邻居（RIPEstat） |
+| `/api/bulk?ips=` | 批量 IP 地理查询（GET 逗号分隔 / POST 文本体，最多 20 个） |
+| `/api/speed?bytes=` | 测速：GET 返回指定字节（默认 1 MiB，上限 10 MiB）；POST 返回接收字节数 |
 | `/api/status` | 服务状态聚合（Cloudflare/GitHub/OpenAI/Anthropic） |
 | `/api/site-config` | 统计/广告配置（来自 Workers 变量，空值表示未启用） |
 | `/robots.txt` | 抓取规则（放行搜索引擎与 AI 爬虫，屏蔽 `/api`、`/ip`） |
@@ -52,9 +57,11 @@ JSON 按分区组织：`location` / `network` / `node` / `reputation` / `connect
 | ipwho.is（主） | 地理全套、ASN/ISP/ORG、代理识别、托管识别 | 否 | 1000/天 | 降级 ip-api |
 | ip-api.com（二级） | 地理、ISP/ORG/AS、移动/托管/代理、rDNS 兜底 | 否 | 45/分钟 | `ENABLE_IPAPI=false` 可关 |
 | ip2region 离线库 | **国内中文省/市/运营商**（xdb 随 Workers Assets 部署，仅 IPv4） | 否 | 无 | 缺数据时 warning，中文归属退化为在线源 |
-| RDAP（rdap.org 引导） | 网段 CIDR、RIR、注册国家、注册时间、滥用投诉邮箱、用途类型 | 否 | 无 | network 段留空 |
+| RDAP（rdap.org 引导） | 网段 CIDR、RIR、注册国家、注册时间、滥用投诉邮箱、用途类型 | 否 | 无 | 失败降级 RIPEstat whois，仍失败才留空 |
 | Cloudflare DoH | rDNS 反解、5 个 DNSBL 黑名单（含命中原因 TXT）、域名解析 | 否 | 无 | rdnsError / 空记录 |
 | 公共 DoH ×6 | `/api/dns` 多解析器对比：Cloudflare / Google / Quad9 / AdGuard / AliDNS / DNSPod | 否 | 无 | 单源失败不影响整体 |
+| RIPEstat | AS 名称/宣告状态、宣告前缀、上下游邻居（`/api/asn`） | 否 | 无 | warnings 记录失败项 |
+| 公共 STUN | WebRTC 泄漏检测（浏览器侧直连 stun.cloudflare.com / stun.l.google.com） | 否 | 无 | 仅 mDNS / 内网候选 |
 | bgp.tools | ASN 名称/描述/注册国家（已知 ASN 时触发） | 否 | 无 | 忽略 |
 | Globalping | 全球分布式探针（ping/http/dns 测量，`/api/ping`） | 否 | 匿名 250 次/h | 429 时提示稍后再试 |
 | Statuspage（CF/GH/OpenAI/Anthropic） | 服务状态聚合（`/api/status`） | 否 | 无 | 字段置空 |
@@ -90,7 +97,7 @@ GH_TOKEN=<有 Contents 写权限的 PAT> npm run xdb:sync
 npx wrangler dev
 curl "http://localhost:8787/api?ip=114.114.114.114"
 curl "http://localhost:8787/api/probe"
-npm test          # 182 个测试（ip/ip-type/calc/merge/xdb/render/inject/seo/tools/dns/adapters/handler 集成）
+npm test          # 208 个测试（ip/ip-type/calc/diag/merge/xdb/render/inject/seo/tools/dns/asn-bulk/adapters/handler 集成）
 ```
 
 ### 4. 部署
@@ -205,11 +212,18 @@ export const siteConfig = {
 
 > AdSense 投放欧盟用户需自行接入 Google 认证的 CMP（同意管理平台）；本项目不含 Cookie 同意弹窗。
 
+## PWA 与离线
+
+- `public/manifest.webmanifest` + `public/sw.js`，可安装为桌面 / 手机应用
+- 导航请求 **network-first**：保证 `HEAD_INJECT` 与站点地址替换等动态渲染始终最新，离线时回落缓存首页
+- 静态资源 **stale-while-revalidate**：先给缓存、后台更新，部署后第二次访问即生效，无需手动 bump 版本号
+- `/api`、`/ip` 完全不进缓存（避免与查询结果、测速混淆）
+
 ## 架构
 
 ```
 请求 → 路由(/api | /ip | /api/probe | /api/domain | /api/dns | /api/ping | /api/status
-              | / + UA 协商 | ASSETS)
+              | /api/asn | /api/bulk | /api/speed | / + UA 协商 | ASSETS)
   → parseIp 校验/规范化 → classifyIp（非公网短路，零外部请求）
   → Cache API 读取（仅显式 ?ip=；过半衰期后台刷新）
   → 并行适配器（Promise.allSettled + 每源超时 + 熔断）
@@ -248,10 +262,15 @@ src/
 ├── adapters/           # 9 个数据源适配器 + 注册/执行 + 优先级表 + 熔断
 ├── tools/              # 工具端点：probe（出口探测）/ domain（DNS+RDAP+CDN）
 │                       #   dns（6 解析器对比）/ ping（Globalping，含 MTR）
+│                       #   asn（RIPEstat）/ bulk（批量）/ speed（测速）
 │                       #   status（状态聚合）/ cache（TTL 缓存）
 └── xdb/searcher.ts     # ip2region xdb 二进制查询（自实现）
 public/                 # Workers Assets：单页 + 原生 JS + CSS + og.png + data/ip2region_v4.xdb
-│   └── assets/calc.js  # 纯前端 IP 计算器（IPv4/IPv6，零请求，可单测）
+│   ├── assets/calc.js  # 纯前端 IP 计算器（IPv4/IPv6，零请求，可单测）
+│   ├── assets/diag.js  # 诊断纯逻辑：站点预设 / UA / 候选分类 / 指纹摘要（可单测）
+│   ├── assets/labs.js  # 连通性 / WebRTC / 指纹 / 测速 / ASN / 批量的 DOM 层
+│   ├── sw.js           # Service Worker 离线壳
+│   └── manifest.webmanifest
 scripts/sync-xdb.mjs    # xdb 数据同步（下载 → Contents API 推送进仓库，随资产部署）
 scripts/make-og.ps1     # 生成 1200×630 分享图（GDI+，需 UTF-8 BOM）
 test/                   # Vitest（@cloudflare/vitest-pool-workers）
@@ -280,6 +299,10 @@ CSS 已预留 `@font-face`（`public/assets/fonts/DingTalk-JinBuTi-CN-subset.wof
 
 - ip2region 仅 IPv4（见上）；「住宅宽带 vs 托管」无权威免费源，`isBroadband` 明确标注为推断
 - 原生 / 广播 IP 判定为启发式：以 RDAP 注册国家为权威、缺失时退回 AS 注册国家，与地理归属国家比对；跨境 Anycast、CDN 回源会让结论接近「中转」而非「欺诈」，仅作参考
+- 连通性检测用 `no-cors` 只验证能否握手，不代表内容可正常使用；被 CORS / 证书策略拦截的站点可能误报为不可达
+- 测速反映「浏览器 ↔ 最近 Cloudflare 边缘节点」的链路，受本机负载与浏览器调度影响，只作相对参考；一轮测试约消耗 20–40MB 流量
+- 浏览器指纹哈希不是唯一标识，只用于说明「无 Cookie 时的可识别程度」，本站不存储任何指纹
+- WebRTC 检测依赖浏览器策略：Firefox 严格模式或禁用 WebRTC 的浏览器可能不返回任何 candidate
 - `/api/dns` 的结果分歧不等于污染：CDN GeoDNS 就近调度、解析器缓存不同步同样会造成差异，需结合国内外解析器分别判断
 - Cloudflare 平台侧的标准请求日志不受应用控制；应用侧本身零日志零存储
 - IP 地理定位精度取决于数据源，城市级为行业常态；DNSBL 逐列表独立展示，不下单一结论

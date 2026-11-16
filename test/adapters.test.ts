@@ -148,6 +148,34 @@ describe('rdap 适配器', () => {
     expect(data.network?.abuseEmail).toBe('abuse@example.com');
     expect(data.network?.allocationDate).toBe('2018-01-01T00:00:00Z');
     expect(data.network?.asName).toBe('CHINANET-GD');
+    expect(data.network?.registryCountry).toBe('CN');
+  });
+
+  it('rdap.org 失败时降级到 RIPEstat whois', async () => {
+    vi.stubGlobal('fetch', mockFetch({
+      // 注意：先匹配 whois，rdap.org 走 404 触发降级
+      'stat.ripe.net/data/whois': {
+        data: {
+          authorities: ['arin'],
+          records: [[
+            { key: 'NetRange', value: '8.8.8.0 - 8.8.8.255' },
+            { key: 'CIDR', value: '8.8.8.0/24' },
+            { key: 'NetName', value: 'GOGL' },
+            { key: 'NetType', value: 'Direct Allocation' },
+            { key: 'RegDate', value: '2023-12-28' },
+            { key: 'OrgAbuseEmail', value: 'network-abuse@google.com' },
+            { key: 'Country', value: 'US' },
+          ]],
+        },
+      },
+    }));
+    const r = await rdapAdapter.run(makeCtx());
+    expect(r.data.network?.registryCountry).toBe('US');
+    expect(r.data.network?.range?.cidr).toBe('8.8.8.0/24');
+    expect(r.data.network?.range?.count).toBe(256);
+    expect(r.data.network?.rir).toBe('ARIN');
+    expect(r.data.network?.abuseEmail).toBe('network-abuse@google.com');
+    expect(r.warnings?.join(' ')).toMatch(/RIPEstat whois 兜底/);
   });
 
   it('v4RangeToCidr 边界', () => {

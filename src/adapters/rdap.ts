@@ -1,6 +1,9 @@
 /**
  * RDAP 适配器：rdap.org 自动引导到正确的 RIR（ARIN/APNIC/RIPE/AFRINIC/LACNIC）。
- * 提供网段范围、RIR、注册时间、滥用投诉邮箱、用途类型等注册局信息。
+ * 提供网段范围、RIR、注册时间、滥用投诉邮箱、用途类型、注册国家等注册局信息。
+ *
+ * rdap.org 不可达时（大陆网络、上游故障）自动降级到 RIPEstat whois 数据集：
+ * 同样来自 RIR 的原始 whois，字段更粗但足以支撑「原生 / 广播 IP」判定。
  */
 
 import type { Adapter, AdapterResult } from './types';
@@ -81,38 +84,136 @@ function extractAbuseEmail(entities: RdapEntity[] | undefined): string | null {
   return null;
 }
 
+interface RipeWhoisRecord {
+  key?: string;
+  value?: string;
+}
+
+const RDAP_PRIMARY_TIMEOUT_MS = 3000;
+
+/** 主通道失败后的短期记忆：10 分钟内直接走兜底，避免每次查询都白等 3 秒 */
+const PRIMARY_COOLDOWN_MS = 10 * 60 * 1000;
+let primaryDownUntil = 0;
+
+/** 组合外部 abort 与本地超时：任一触发即中断（保持兜底通道仍有时间预算） */
+function withTimeout(signal: AbortSignal | undefined, ms: number): AbortSignal {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(new Error(`primary timeout ${ms}ms`)), ms);
+  const forward = () => ctrl.abort(new Error('aborted'));
+  if (signal) {
+    if (signal.aborted) forward();
+    else signal.addEventListener('abort', forward, { once: true });
+  }
+  // 清理挂在 controller 上的定时器：abort 之后无需再等
+  ctrl.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+  return ctrl.signal;
+}
+
+interface RipeWhoisData {
+  records?: RipeWhoisRecord[][];
+  authorities?: string[];
+}
+
+/** 从 "8.8.8.0 - 8.8.8.255" 中提取起止地址 */
+export function parseNetRange(raw: string | undefined): { start: string | null; end: string | null } {
+  if (!raw) return { start: null, end: null };
+  const m = /^\s*([0-9a-fA-F:.]+)\s*-\s*([0-9a-fA-F:.]+)\s*$/.exec(raw);
+  if (!m) return { start: null, end: null };
+  return { start: m[1], end: m[2] };
+}
+
+/** RIPEstat whois 兜底：字段比 RDAP 粗，但覆盖 country / CIDR / 滥用邮箱 */
+async function viaRipeWhois(fetchFn: typeof fetch, ip: string, signal?: AbortSignal): Promise<DeepPartial<IpInfo>> {
+  const res = await fetchFn(`https://stat.ripe.net/data/whois/data.json?resource=${encodeURIComponent(ip)}`, {
+    signal: signal ?? AbortSignal.timeout(6000),
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(`RIPEstat whois HTTP ${res.status}`);
+  const j = (await res.json()) as { data?: RipeWhoisData };
+  const records = (j.data?.records ?? []).flat();
+
+  const first = (keys: string[]): string | null => {
+    for (const key of keys) {
+      const hit = records.find((r) => r.key?.toLowerCase() === key.toLowerCase() && r.value && r.value.trim());
+      if (hit?.value) return hit.value.trim();
+    }
+    return null;
+  };
+
+  const { start, end } = parseNetRange(first(['NetRange']) ?? undefined);
+  const cidr = first(['CIDR']);
+  const rir = (j.data?.authorities?.[0] ?? first(['source']) ?? '').toUpperCase() || null;
+
+  return {
+    network: {
+      range: {
+        start,
+        end,
+        cidr,
+        count: start && end && ipVersion(ip) === 4 ? v4ToNum(end) - v4ToNum(start) + 1 : null,
+      },
+      rir,
+      allocationDate: first(['RegDate']),
+      abuseEmail: first(['OrgAbuseEmail', 'abuse-mailbox']),
+      usageType: first(['NetType']),
+      asName: first(['NetName']),
+      registryCountry: (first(['Country']) ?? '').toUpperCase() || null,
+    },
+  };
+}
+
 export const rdapAdapter: Adapter = {
   id: 'rdap',
-  timeoutMs: 5000,
+  // 主通道（rdap.org）3s 内没有响应就切 RIEstat whois 兜底，故总预算放宽到 9s
+  timeoutMs: 9000,
   cacheTtlSec: 24 * 60 * 60,
   async run(ctx, signal): Promise<AdapterResult> {
     const url = `https://rdap.org/ip/${encodeURIComponent(ctx.ip)}`;
-    const res = await ctx.fetchFn(url, { signal, headers: { Accept: 'application/rdap+json' } });
-    if (!res.ok) throw new Error(`rdap HTTP ${res.status}`);
-    const j = (await res.json()) as RdapResponse;
+    const skipPrimary = Date.now() < primaryDownUntil;
+    try {
+      if (skipPrimary) throw new Error('主通道近期不可用，直接兜底');
+      const res = await ctx.fetchFn(url, {
+        signal: withTimeout(signal, RDAP_PRIMARY_TIMEOUT_MS),
+        headers: { Accept: 'application/rdap+json' },
+      });
+      if (!res.ok) throw new Error(`rdap HTTP ${res.status}`);
+      const j = (await res.json()) as RdapResponse;
 
-    const start = j.startAddress ?? null;
-    const end = j.endAddress ?? null;
-    const cidr = start && end && ipVersion(ctx.ip) === 4 ? v4RangeToCidr(start, end) : null;
-    const count =
-      start && end && ipVersion(ctx.ip) === 4
-        ? (v4ToNum(end) - v4ToNum(start) + 1)
-        : null;
-    const registration = j.events?.find((e) => e.eventAction === 'registration' || e.eventAction === 'allocation');
+      const start = j.startAddress ?? null;
+      const end = j.endAddress ?? null;
+      const cidr = start && end && ipVersion(ctx.ip) === 4 ? v4RangeToCidr(start, end) : null;
+      const count =
+        start && end && ipVersion(ctx.ip) === 4
+          ? (v4ToNum(end) - v4ToNum(start) + 1)
+          : null;
+      const registration = j.events?.find((e) => e.eventAction === 'registration' || e.eventAction === 'allocation');
 
-    const data: DeepPartial<IpInfo> = {
-      network: {
-        range: { start, end, cidr, count },
-        rir: rirFromUrl(res.url || url) ?? rirFromPort43(j.port43),
-        allocationDate: registration?.eventDate ?? null,
-        abuseEmail: extractAbuseEmail(j.entities),
-        usageType: j.type ?? null,
-        rdapServer: res.url || url,
-        asName: j.name ?? null,
-        registryCountry: j.country ? j.country.toUpperCase() : null,
-      },
-    };
-    return { data };
+      const data: DeepPartial<IpInfo> = {
+        network: {
+          range: { start, end, cidr, count },
+          rir: rirFromUrl(res.url || url) ?? rirFromPort43(j.port43),
+          allocationDate: registration?.eventDate ?? null,
+          abuseEmail: extractAbuseEmail(j.entities),
+          usageType: j.type ?? null,
+          rdapServer: res.url || url,
+          asName: j.name ?? null,
+          registryCountry: j.country ? j.country.toUpperCase() : null,
+        },
+      };
+      primaryDownUntil = 0;
+      return { data };
+    } catch (e) {
+      // 主通道失败：RIPEstat whois 兜底（同为 RIR 原始数据）
+      primaryDownUntil = Date.now() + PRIMARY_COOLDOWN_MS;
+      const reason = e instanceof Error ? e.message : String(e);
+      try {
+        const data = await viaRipeWhois(ctx.fetchFn, ctx.ip, signal);
+        return { data, warnings: [`rdap.org 不可用（${reason}），已改用 RIPEstat whois 兜底`] };
+      } catch (e2) {
+        const reason2 = e2 instanceof Error ? e2.message : String(e2);
+        throw new Error(`rdap.org 失败（${reason}），RIPEstat whois 兜底也失败（${reason2}）`);
+      }
+    }
   },
 };
 

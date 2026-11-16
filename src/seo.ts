@@ -85,6 +85,9 @@ export function llmsTxt(origin: string): string {
   托管 vs 住宅（带置信度与来源）、Anycast 推断
 - 信誉：5 个 DNSBL 黑名单逐列表结果、代理 / VPN / Tor 判定
 - 连接层（仅查询自身 IP 时）：HTTP 协议、TLS 版本与套件、TCP RTT、边缘节点 colo
+- 浏览器侧诊断（本地完成，不上传数据）：30 个站点连通性检测、WebRTC 泄漏、浏览器指纹、
+  下载 / 上传 / 延迟测速、IPv4 / IPv6 子网计算器
+- 批量与基建：批量 IP 地理查询（最多 20 个）、ASN 查询（名称 / 宣告前缀 / 上下游邻居）
 
 ## 接口
 
@@ -96,6 +99,9 @@ export function llmsTxt(origin: string): string {
 - [全球 Ping / MTR](${origin}/api/ping?target=1.1.1.1&type=ping)：Globalping 分布式探针测量
   （type 支持 ping / http / dns / mtr）
 - [服务状态](${origin}/api/status)：Cloudflare / GitHub / OpenAI / Anthropic 状态聚合
+- [ASN 查询](${origin}/api/asn?asn=AS13335)：RIPEstat AS 名称、宣告前缀、上下游邻居
+- [批量查询](${origin}/api/bulk?ips=1.1.1.1,8.8.8.8)：最多 20 个 IP 的国家 / 城市 / ASN
+- [测速](${origin}/api/speed?bytes=1048576)：自建下载测速端点；POST 同路径可测上传
 
 ## 使用说明
 

@@ -975,6 +975,112 @@ footer a:hover { color: var(--accent); }
 .hop-host { color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--sans); }
 .hop-rtt { color: var(--text2); text-align: right; }
 
+/* ===== 工具分组与实验台 ===== */
+.tools-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 10px;
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.tools-group::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}
+
+.check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  color: var(--text2);
+  font-size: 12.5px;
+}
+
+.check-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.check-row input { accent-color: var(--accent); }
+
+.tool-form.conn-form { flex-direction: column; align-items: flex-start; gap: 10px; }
+.tool-form.conn-form button { align-self: stretch; }
+.tool-form.bulk-form { flex-direction: column; align-items: stretch; }
+
+.tool-form textarea {
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  box-shadow: var(--clay-in);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  transition: box-shadow 0.2s var(--ease);
+}
+
+.tool-form textarea:focus {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: var(--clay-in), 0 0 0 3px var(--accent-soft);
+}
+
+/* 测速结果 */
+.speed-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+
+.speed {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  box-shadow: var(--clay-in);
+}
+
+.speed .label {
+  color: var(--text2);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.speed .value {
+  margin-top: 4px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.speed .value small { margin-left: 4px; color: var(--text2); font-size: 11px; font-weight: 400; }
+
+/* 指纹 / ASN 紧凑键值表 */
+.kv.kv-compact { font-size: 12.5px; }
+.kv-compact > div { grid-template-columns: 96px 1fr; }
+.kv-compact dd { font-family: var(--sans); word-break: break-word; }
+
+.neigh {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  text-decoration: none;
+}
+
+.neigh:hover { background: var(--accent-soft); }
+
+.tool-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+.hint { margin: 8px 0 0; color: var(--text2); font-size: 11.5px; line-height: 1.7; }
+
+.status.live { animation: cfip-pulse 1.2s ease-in-out infinite; }
+@keyframes cfip-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
 /* ===== 锚点补偿 ===== */
 #tools, #faq { scroll-margin-top: 84px; }
 
@@ -1004,6 +1110,7 @@ footer a:hover { color: var(--accent); }
   .kv > div { grid-template-columns: 86px 1fr; gap: 10px; }
   .promo { flex-direction: column; align-items: flex-start; gap: 12px; }
   .promo-go { align-self: stretch; text-align: center; }
+  .speed-grid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

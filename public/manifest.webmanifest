@@ -1,0 +1,27 @@
+{
+  "name": "CFIP · IP 地址详细信息查询",
+  "short_name": "CFIP",
+  "description": "IP 归属地 / ASN / 原生广播判定 / DNSBL / 代理识别，附连通性检测、WebRTC 泄漏、浏览器指纹与测速。",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14161d",
+  "theme_color": "#6353e8",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
